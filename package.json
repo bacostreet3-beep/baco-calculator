@@ -1,11 +1,10 @@
 {
   "name": "baco-street-calculator",
   "version": "2.0.0",
-  "description": "Baking Calculator with Gemini 2.5 Flash AI",
-  "main": "index.html",
+  "description": "Baking Calculator with Gemini AI",
   "scripts": {
-    "start": "node api/analyze.js",
-    "dev": "node api/analyze.js"
+    "dev": "vercel dev",
+    "build": "echo 'No build step necessary'"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
