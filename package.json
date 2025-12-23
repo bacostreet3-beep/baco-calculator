@@ -4,7 +4,8 @@
   "description": "Baking Calculator with Gemini 2.5 Flash AI",
   "main": "index.html",
   "scripts": {
-    "start": "node api/analyze.js"
+    "start": "node api/analyze.js",
+    "dev": "node api/analyze.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
