@@ -1,208 +1,169 @@
-// api/analyze.js
-require("dotenv").config();
-
-const http = require("http");
-const path = require("path");
-const fs = require("fs");
-const os = require("os");
-const formidable = require("formidable");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const formidableLib = require("formidable");
+const fs = require("node:fs");
 
-const PORT = Number(process.env.PORT) || 3000;
-const ROOT_DIR = path.join(__dirname, ".."); // 專案根目錄（index.html 所在）
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-  console.error("❌ 找不到 API Key：請設定環境變數 GOOGLE_API_KEY");
-  process.exit(1);
-}
-
-// Gemini 2.5 Flash（穩定版 model code：gemini-2.5-flash）
-// 參考：Google AI for Developers - Gemini models :contentReference[oaicite:1]{index=1}
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-function sendJson(res, statusCode, obj) {
-  const body = JSON.stringify(obj);
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
-  });
-  res.end(body);
-}
-
-function sendText(res, statusCode, text) {
-  res.writeHead(statusCode, {
-    "Content-Type": "text/plain; charset=utf-8",
-    "Cache-Control": "no-store",
-  });
-  res.end(text);
-}
-
-function sendFile(res, filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType =
-    ext === ".html"
-      ? "text/html; charset=utf-8"
-      : ext === ".css"
-      ? "text/css; charset=utf-8"
-      : ext === ".js"
-      ? "application/javascript; charset=utf-8"
-      : "application/octet-stream";
-
-  try {
-    const buf = fs.readFileSync(filePath);
-    res.writeHead(200, {
-      "Content-Type": contentType,
-      "Cache-Control": "no-store",
-    });
-    res.end(buf);
-  } catch (e) {
-    sendText(res, 404, "Not Found");
+// ✅ 兼容 formidable v3：require('formidable') 會回傳物件，不一定是 function
+function createForm(options) {
+  // v3 常見：{ formidable, IncomingForm, Formidable, ... }
+  if (formidableLib && typeof formidableLib.formidable === "function") {
+    return formidableLib.formidable(options);
   }
+
+  // 少數環境：default export 是 function
+  if (formidableLib && typeof formidableLib.default === "function") {
+    return formidableLib.default(options);
+  }
+
+  // 舊用法：new IncomingForm()
+  const IncomingFormCtor = formidableLib.IncomingForm || formidableLib.Formidable;
+  if (IncomingFormCtor) {
+    return new IncomingFormCtor(options);
+  }
+
+  // 最後保底：如果整個 require 回來就是 function
+  if (typeof formidableLib === "function") {
+    return formidableLib(options);
+  }
+
+  throw new TypeError("formidable 初始化失敗：找不到 formidable() 或 IncomingForm/Formidable");
+}
+
+function toStrField(v) {
+  if (v == null) return "";
+  // formidable fields 可能是 string 或 string[]
+  if (Array.isArray(v)) return String(v[0] ?? "");
+  return String(v);
+}
+
+function pickFirstFile(files, key) {
+  if (!files || !files[key]) return null;
+  return Array.isArray(files[key]) ? files[key][0] : files[key];
 }
 
 function extractJsonArray(text) {
-  // 1) 去掉常見 code fence
+  // 先移除 ```json ``` 包裹
   let t = String(text || "")
     .replace(/```json/gi, "")
     .replace(/```/g, "")
     .trim();
 
-  // 2) 嘗試抓第一個 JSON Array 區段（避免模型夾雜解釋）
-  const m = t.match(/\[[\s\S]*\]/);
-  if (m) t = m[0].trim();
-
-  return t;
+  // 嘗試直接 parse
+  try {
+    return JSON.parse(t);
+  } catch (_) {
+    // 再嘗試抓出第一段 [...]（避免模型多講話）
+    const start = t.indexOf("[");
+    const end = t.lastIndexOf("]");
+    if (start !== -1 && end !== -1 && end > start) {
+      const sliced = t.slice(start, end + 1);
+      return JSON.parse(sliced);
+    }
+    throw new Error("AI 回傳格式錯誤，找不到可解析的 JSON Array");
+  }
 }
 
-async function handleAnalyze(req, res) {
-  const form = formidable({
-    keepExtensions: true,
-    maxFileSize: 10 * 1024 * 1024,
-    uploadDir: os.tmpdir(),
-    multiples: false,
-  });
-
-  const [fields, files] = await new Promise((resolve, reject) => {
-    form.parse(req, (err, fields, files) => {
-      if (err) return reject(err);
-      resolve([fields, files]);
-    });
-  });
-
-  const textPrompt = fields.text ? String(fields.text) : "";
-
-  // formidable v3 的檔案路徑屬性是 filepath（有些環境/版本會是 path）
-  // filepath: string :contentReference[oaicite:2]{index=2}
-  const imageFile = files.image
-    ? Array.isArray(files.image)
-      ? files.image[0]
-      : files.image
-    : null;
-
-  if (!textPrompt && !imageFile) {
-    return sendJson(res, 400, { error: "請輸入文字或選擇圖片！" });
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const prompt = `
-角色：專業烘焙數據分析師
-任務：從食譜中精準提取「食材」與「重量」
-規則（非常重要）：
-1) 只能回傳「純 JSON Array」，不要任何說明文字
-2) 所有單位一律換算成公克 g（只回傳數字）
-3) 格式固定為：[{ "name": "食材", "weight": 123 }]
-4) 如果遇到「適量/少許」等無法換算者，weight 請填 0
+  try {
+    const form = createForm({
+      keepExtensions: true,
+      maxFileSize: 10 * 1024 * 1024,
+      multiples: false,
+    });
+
+    const [fields, files] = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) return reject(err);
+        resolve([fields, files]);
+      });
+    });
+
+    const textPrompt = toStrField(fields.text);
+    const imageFile = pickFirstFile(files, "image");
+
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "找不到 API Key (GOOGLE_API_KEY)",
+        details: "請到部署平台環境變數設定 GOOGLE_API_KEY",
+      });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // ✅ 你想用 Gemini 2.5：使用 gemini-2.5-flash
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+    });
+
+    const prompt = `
+角色：專業烘焙數據分析師。
+任務：從食譜中精準提取「食材」與「重量」。
+規則：
+1) 嚴格回傳「純 JSON Array」，不要多任何說明文字。
+2) 將所有單位轉換為公克 (g)。
+3) 格式必須是：
+[
+  {"name":"食材", "weight": 123},
+  ...
+]
 `.trim();
 
-  const fullPrompt = textPrompt ? `${prompt}\n\n食譜文字：\n${textPrompt}` : prompt;
+    let result;
 
-  let result;
-  if (imageFile) {
-    const filePath = imageFile.filepath || imageFile.path; // 兼容
-    const mimeType = imageFile.mimetype || imageFile.type || "image/jpeg";
+    if (imageFile) {
+      const filepath = imageFile.filepath || imageFile.path; // ✅ 兼容不同版本欄位
+      if (!filepath) throw new Error("上傳圖片缺少 filepath/path");
 
-    const imageBuffer = fs.readFileSync(filePath);
-    const imageBase64 = imageBuffer.toString("base64");
+      const imageBuffer = fs.readFileSync(filepath);
+      const imageBase64 = imageBuffer.toString("base64");
 
-    const imagePart = {
-      inlineData: {
-        data: imageBase64,
-        mimeType,
-      },
-    };
+      const imagePart = {
+        inlineData: {
+          data: imageBase64,
+          mimeType: imageFile.mimetype || "image/png",
+        },
+      };
 
-    result = await model.generateContent([fullPrompt, imagePart]);
-  } else {
-    result = await model.generateContent(fullPrompt);
-  }
+      const fullPrompt = textPrompt ? `${prompt}\n\n食譜文字補充：\n${textPrompt}` : prompt;
+      result = await model.generateContent([fullPrompt, imagePart]);
+    } else {
+      if (!textPrompt) throw new Error("請輸入文字或選擇圖片！");
+      result = await model.generateContent(`${prompt}\n\n食譜文字：\n${textPrompt}`);
+    }
 
-  const response = await result.response;
-  const rawText = response.text();
+    const response = await result.response;
+    const rawText = response.text();
 
-  const jsonText = extractJsonArray(rawText);
+    const parsed = extractJsonArray(rawText);
 
-  let ingredients;
-  try {
-    ingredients = JSON.parse(jsonText);
-  } catch (e) {
-    console.error("❌ JSON Parse Error. RAW:\n", rawText);
-    return sendJson(res, 500, {
-      error: "AI 回傳格式錯誤，無法解析為 JSON",
-      details: "請稍後重試，或調整食譜輸入更清楚（每行：食材 + 數字 + 單位）",
+    if (!Array.isArray(parsed)) {
+      throw new Error("AI 回傳不是 JSON Array");
+    }
+
+    // ✅ 清理輸出：確保 name/weight 型別正確
+    const ingredients = parsed
+      .map((x) => ({
+        name: String(x?.name ?? "").trim() || "未知食材",
+        weight: Number(x?.weight ?? 0) || 0,
+      }))
+      .filter((x) => x.name);
+
+    return res.status(200).json({ data: ingredients });
+  } catch (error) {
+    console.error("API Error:", error);
+    return res.status(500).json({
+      error: error?.message || "AI 辨識失敗",
+      details: error?.stack ? String(error.stack) : "",
     });
   }
-
-  if (!Array.isArray(ingredients)) {
-    return sendJson(res, 500, {
-      error: "AI 回傳格式錯誤",
-      details: "回傳不是 JSON Array",
-    });
-  }
-
-  // 輕度清理
-  const cleaned = ingredients.map((x) => ({
-    name: (x && x.name ? String(x.name) : "未知食材").trim(),
-    weight: Number(x && x.weight ? x.weight : 0) || 0,
-  }));
-
-  return sendJson(res, 200, { data: cleaned });
 }
-
-const server = http.createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-
-    // API
-    if (url.pathname === "/api/analyze") {
-      if (req.method !== "POST") {
-        return sendJson(res, 405, { error: "Method Not Allowed" });
-      }
-      return await handleAnalyze(req, res);
-    }
-
-    // 靜態檔案（預設回 index.html）
-    if (req.method !== "GET") {
-      return sendText(res, 405, "Method Not Allowed");
-    }
-
-    const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-    const safePath = path.normalize(decodeURIComponent(pathname)).replace(/^(\.\.[\/\\])+/, "");
-    const filePath = path.join(ROOT_DIR, safePath);
-
-    // 防穿越
-    if (!filePath.startsWith(ROOT_DIR)) {
-      return sendText(res, 403, "Forbidden");
-    }
-
-    return sendFile(res, filePath);
-  } catch (err) {
-    console.error("Server Error:", err);
-    return sendJson(res, 500, { error: "Server Error", details: err.message });
-  }
-});
-
-server.listen(PORT, () => {
-  console.log(`✅ Server running: http://localhost:${PORT}`);
-  console.log(`✅ AI endpoint:  POST http://localhost:${PORT}/api/analyze`);
-});
