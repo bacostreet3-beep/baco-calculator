@@ -708,42 +708,48 @@
 
         const data = await res.json(); // 確保這裡有 await
 
+        // --- 請把原本的 if (res.ok) { ... } 整段換成這個 ---
         if (res.ok) {
-            // 成功：填入數據 (這裡處理回傳的資料結構)
-            // 根據您之前的截圖，這裡的變數名稱要對應
-            let ingredients = [];
-            
-            // 檢查回傳的結構是 data.ingredients 還是直接是陣列
-            if (data.ingredients) {
-                ingredients = data.ingredients;
-            } else if (Array.isArray(data)) {
-                ingredients = data;
-            } else if (data.data) { 
-                // 有時候會包在 data.data 裡，增加保險
-                ingredients = data.data;
+            // 1. 聰明抓取：不管 AI 回傳什麼格式 (陣列/物件) 都通吃
+            let rawData = [];
+            if (Array.isArray(data)) {
+                rawData = data;
+            } else if (data.ingredients && Array.isArray(data.ingredients)) {
+                rawData = data.ingredients;
+            } else if (data.data && Array.isArray(data.data)) {
+                rawData = data.data;
             }
 
-            if (ingredients && ingredients.length > 0) {
-                 // 呼叫填入表格的函式 (假設您的 populateTable 函式還在)
-                 // 如果沒有 populateTable，我們手動處理:
-                 if (typeof populateTable === 'function') {
-                     populateTable(ingredients);
+            if (rawData.length > 0) {
+                 // 2. 格式轉換：把 AI 的資料轉成烘焙計算機看得懂的格式
+                 // 這裡會自動使用 nextId 來產生編號，確保表格功能正常
+                 ingredients = rawData.map((item, idx) => ({
+                     id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
+                     name: item.name || '未知食材', 
+                     weight: Number(item.weight) || 0, 
+                     realPct: 0, 
+                     bakerPct: 0, 
+                     isBase: idx === 0 // 預設第一筆是主食材
+                 }));
+
+                 // 3. 關鍵指令：告訴網頁「資料變了，請重新畫圖！」
+                 // 這行會觸發表格更新、百分比重算
+                 if (typeof setMode === 'function') {
+                     setMode('weight'); 
                  } else {
-                     // 如果找不到 populateTable，至少嘗試用 data.map 處理 (參照您舊程式碼的邏輯)
-                      ingredients.forEach((item, idx) => {
-                          // 這裡假設有一個全局變數 nextId++ 和 setMode
-                          // 為了避免錯誤，這邊建議直接使用您原本的 populateTable 邏輯
-                          // 但為了保險起見，這段先保持簡單，讓它至少不報錯
-                          console.log("分析成功:", item);
-                      });
-                      // 如果您有把 populateTable 刪掉，記得補回來，或者確認下方有這個函式
-                      // 暫時假設 populateTable 存在於這份文件的其他地方
+                     console.warn("找不到 setMode，嘗試手動刷新...");
                  }
 
+                 // 4. 更新綠色狀態列
                  if (statusBar) {
-                     statusBar.innerText = "✅ 分析完成！請檢查下方表格";
-                     statusBar.style.backgroundColor = "#28a745"; // 綠色
+                     statusBar.innerText = "✅ 分析完成！資料已填入表格";
+                     statusBar.style.backgroundColor = "#28a745"; 
                  }
+            } else {
+                throw new Error("AI 回傳了空的資料，無法填寫表格");
+            }
+        } 
+        // --- 貼上結束 (下面接著 else { ... } ) ---
             } else {
                 throw new Error("AI 回傳格式不正確 (沒有 ingredients)");
             }
