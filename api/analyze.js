@@ -1,118 +1,71 @@
-// --- 這裡保留你原本的 ingredients 資料結構 ---
-    let ingredients = [
-        { id: 1, name: '麵粉', weight: 100, realPct: 58.5, bakerPct: 100, isBase: true },
-        { id: 2, name: '水', weight: 70, realPct: 40.9, bakerPct: 70, isBase: false },
-        { id: 3, name: '酵母', weight: 1, realPct: 0.6, bakerPct: 1, isBase: false }
-    ];
-    let nextId = 4;
-    let currentMode = 'weight'; 
-    let isRenderDecimal = false;
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import formidable from 'formidable';
+import fs from 'fs';
 
-    // ... (中間的 helpTexts 和其他 UI 函式不用動，可以保留) ...
-    // ... (為了篇幅，這裡省略中間 showHelp, setMode, buildTableStructure 等 UI 顯示函式，請保留你原本的) ...
+export const config = {
+  api: {
+    bodyParser: false, // 必須關閉，才能用 formidable 處理檔案上傳
+  },
+};
 
-    // ========== 請務必更新以下這區塊 (AI 處理核心) ==========
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-    // 1. 新增這個工具函式：把圖片轉成 Base64
-    const toBase64 = file => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
-    // 2. 更新後的 processAI 函式
-    async function processAI(e) {
-        if (e && typeof e.preventDefault === 'function') {
-            e.preventDefault();
-        }
+  try {
+    // 1. 解析上傳的檔案
+    const form = formidable({ keepExtensions: true });
+    const [fields, files] = await form.parse(req);
 
-        const statusBar = document.getElementById('ai-status-bar');
-        const btn = document.getElementById('ai-trigger-btn');
-        const textInput = document.getElementById('ai-text-input');
-        const fileInput = document.getElementById('ai-image-input');
+    const imageFile = files.image?.[0]; // 取得上傳的圖片
+    const instruction = fields.instruction?.[0]; // 取得使用者的補充說明
 
-        if (btn) btn.disabled = true;
-        if (statusBar) {
-            statusBar.innerText = "⏳ 正在分析食譜中，請稍候...";
-            statusBar.style.color = "var(--text-light)";
-        }
-
-        try {
-            const text = textInput ? textInput.value : "";
-            const file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
-
-            if (!text && !file) {
-                throw new Error("請輸入文字或選擇圖片！");
-            }
-
-            // 準備傳送的資料 (JSON 格式)
-            let payload = { text: text };
-            
-            // 如果有圖片，先轉成 Base64 字串
-            if (file) {
-                if (file.size > 8 * 1024 * 1024) { // 簡單檢查是否超過 8MB
-                    throw new Error("圖片太大囉，請使用小於 8MB 的圖片");
-                }
-                payload.image = await toBase64(file);
-            }
-
-            // 發送請求
-            const res = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json' // 告訴後端這是 JSON
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                let rawData = data.data || []; // 根據新的後端格式讀取 data 欄位
-                
-                if (rawData.length > 0) {
-                     // 清空舊資料，換成 AI 的資料
-                     ingredients = rawData.map((item, idx) => ({
-                         id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
-                         name: item.name || '未知食材', 
-                         weight: Number(item.weight) || 0, 
-                         realPct: 0, 
-                         bakerPct: 0, 
-                         isBase: idx === 0 
-                     }));
-
-                     if (typeof setMode === 'function') {
-                         setMode('weight'); 
-                     }
-
-                     if (statusBar) {
-                         statusBar.innerText = "✅ 分析完成！資料已填入表格";
-                         statusBar.style.color = "var(--success-green)"; 
-                     }
-                } else {
-                    throw new Error("AI 無法辨識出任何食材，請試試看更清晰的照片");
-                }
-            } else {
-                throw new Error(data.error || "伺服器錯誤");
-            }
-
-        } catch (err) {
-            console.error(err);
-            if (statusBar) {
-                statusBar.innerText = "❌ 發生錯誤：" + err.message;
-                statusBar.style.color = "var(--error-red)";
-            }
-        } finally {
-            if (btn) btn.disabled = false;
-        }
+    if (!imageFile) {
+      return res.status(400).json({ error: '未接收到圖片檔案' });
     }
 
-    // ... (保留原本的 initDragAndDrop, initWakeLock, handleFileSelect 等函式) ...
+    // 2. 讀取圖片並轉為 Base64
+    const imageBuffer = fs.readFileSync(imageFile.filepath);
+    const base64Image = imageBuffer.toString('base64');
 
-    // 確保按鈕綁定
-    document.addEventListener('DOMContentLoaded', function() {
-       // ... (保留你原本的 DOMContentLoaded 內容) ...
-       const btn = document.getElementById('ai-trigger-btn');
-       if (btn) btn.addEventListener('click', processAI);
+    // 3. 設定 Gemini 模型
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // 4. 準備 Prompt
+    const prompt = instruction 
+      ? `請分析這張圖片。使用者的問題或說明是：「${instruction}」。請根據圖片內容給出專業的回答。如果這是食譜，請列出食材與步驟。`
+      : "請詳細分析這張圖片的內容。如果是食譜，請幫我轉換成文字格式。";
+
+    const imagePart = {
+      inlineData: {
+        data: base64Image,
+        mimeType: imageFile.mimetype || "image/jpeg",
+      },
+    };
+
+    console.log("正在向 Gemini 發送請求...");
+
+    // 5. 發送請求
+    const result = await model.generateContent([prompt, imagePart]);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log("Gemini 分析完成");
+
+    // 6. 回傳成功結果
+    return res.status(200).json({ result: text });
+
+  } catch (error) {
+    console.error("API Error:", error);
+    
+    // 這裡是最重要的修改：
+    // 無論發生什麼錯，都回傳 JSON，前端才不會報 "Unexpected token"
+    return res.status(500).json({ 
+      error: "伺服器發生錯誤", 
+      details: error.message 
     });
+  }
+}
