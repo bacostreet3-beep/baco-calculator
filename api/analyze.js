@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import formidable from 'formidable';
-import fs from 'fs';
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const formidable = require('formidable');
+const fs = require('fs');
 
 export const config = {
   api: {
@@ -8,55 +8,87 @@ export const config = {
   },
 };
 
+// 使用 Gemini 1.5 Flash 模型 (穩定且快速)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const form = formidable({ keepExtensions: true });
 
   try {
-    const form = formidable();
     const [fields, files] = await form.parse(req);
-    
-    // 取得文字或圖片
-    const textInput = fields.text ? fields.text[0] : '';
-    const file = files.image ? files.image[0] : null;
 
-    // 設定 Google AI
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // 準備給 AI 的內容陣列
+    let parts = [];
 
-    let prompt = `
-      你是專業烘焙助手。請分析提供的食譜內容（文字或圖片）。
-      任務：提取食材名稱(name)與重量(weight)。
-      
-      規則：
-      1. 若只有比例沒有重量，weight 填 null。
-      2. 若單位不是公克，請自動換算成公克(g)。
-      3. 若辨識不清或不確定，name 標記為 "(辨識不清)"。
-      4. 只回傳純 JSON 陣列格式：[{ "name": "麵粉", "weight": 100 }, ...]
-      5. 不要包含任何 Markdown 標記 (如 \`\`\`json)。
-    `;
-
-    let result;
-    if (file) {
-      const imageData = fs.readFileSync(file.filepath);
-      const imageBase64 = imageData.toString('base64');
-      const parts = [
-        { text: prompt },
-        { inlineData: { mimeType: file.mimetype, data: imageBase64 } }
-      ];
-      if(textInput) parts.push({ text: `額外補充文字：${textInput}`});
-      
-      result = await model.generateContent(parts);
-    } else {
-      result = await model.generateContent([prompt, textInput]);
+    // 1. 處理文字輸入
+    if (fields.text && fields.text[0]) {
+      parts.push(fields.text[0]);
     }
 
-    const responseText = result.response.text().replace(/```json|```/g, '').trim();
-    const data = JSON.parse(responseText);
+    // 2. 處理圖片 (這是修正的關鍵！)
+    if (files.image) {
+      // 判斷：如果是多張圖片(陣列)，就直接用；如果是單張(物件)，就包成陣列
+      const imageFiles = Array.isArray(files.image) ? files.image : [files.image];
+
+      // 迴圈處理每一張圖片
+      for (const file of imageFiles) {
+        const imageData = fs.readFileSync(file.filepath).toString("base64");
+        parts.push({
+          inlineData: {
+            data: imageData,
+            mimeType: file.mimetype,
+          },
+        });
+      }
+    }
+
+    // 3. 加入系統提示詞 (告訴 AI 要做什麼)
+    const systemPrompt = `
+      你是一個專業的烘焙食譜分析師。
+      請分析上傳的圖片(可能有多張)或文字，提取出食譜中的「食材名稱」與「重量(克)」。
+      
+      規則：
+      1. 如果圖片被切成多張（例如一張上半部、一張下半部），請綜合所有圖片資訊。
+      2. 優先尋找重量單位為 g (公克) 的數值。如果是其他單位(lb, oz, 杯, 匙)，請盡量換算成公克。
+      3. 忽略非食材項目（如器具、溫度、步驟說明）。
+      4. 若有重複提到的食材，請自行判斷是否為同一項並合併，或取最合理的數值。
+      5. 請務必回傳「純 JSON 陣列」，格式如下：
+      
+      [
+        { "name": "高筋麵粉", "weight": 250 },
+        { "name": "冰水", "weight": 160 },
+        { "name": "速發酵母", "weight": 3 }
+      ]
+      
+      (注意：不要回傳 markdown 標記，只要 JSON 字串)
+    `;
     
-    res.status(200).json({ data });
+    // 把提示詞放在最後面
+    parts.push(systemPrompt);
+
+    // 4. 發送給 Gemini
+    const result = await model.generateContent(parts);
+    const response = await result.response;
+    let text = response.text();
+
+    // 清理可能回傳的 Markdown 符號
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    try {
+        const ingredients = JSON.parse(text);
+        return res.status(200).json({ ingredients });
+    } catch (e) {
+        console.error("JSON Parse Error:", text);
+        return res.status(500).json({ error: "AI 回傳格式無法解析" });
+    }
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'AI 辨識失敗，請稍後再試' });
+    console.error("Server Error:", error);
+    return res.status(500).json({ error: "伺服器處理失敗：" + error.message });
   }
 }
