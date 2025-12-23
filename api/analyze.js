@@ -41,11 +41,12 @@ export default async function handler(req, res) {
     // 4. 設定 Google AI
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-    // 修改這裡：改用 gemini-3-flash 或 gemini-2.5-flash-lite
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-3-flash", 
-      generationConfig: { responseMimeType: "application/json" } 
-    });
+const model = genAI.getGenerativeModel({ 
+  model: "gemini-2.5-flash", 
+  generationConfig: { responseMimeType: "application/json" } 
+});
+    
+    
     const prompt = `
       你是專業烘焙助手。請分析提供的食譜內容（文字或圖片）。
       任務：提取食材名稱(name)與重量(weight)。
