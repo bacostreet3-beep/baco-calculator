@@ -251,8 +251,7 @@
         
         <div class="ai-controls-row">
             <input type="file" id="ai-image-input" accept="image/*" onchange="handleFileSelect(this)">
-            
-<button id="ai-trigger-btn" class="btn-analyze">開始辨識</button>
+            <button id="ai-trigger-btn" class="btn-analyze">開始辨識</button>
         </div>
 
         <div id="ai-status-bar" class="ai-status-bar">
@@ -662,131 +661,120 @@
             // 在文字框內顯示提示，讓使用者知道檔案吃到了
             const fileName = input.files[0].name;
             textArea.placeholder = `[已讀取圖片]: ${fileName}\n\n若有額外補充說明，請直接在此輸入...`;
-            // 不覆蓋使用者可能已經打的字，只改 placeholder 或追加文字 (視需求，這裡改placeholder比較不干擾)
         }
     }
 
-   async function processAI(e) {
-    // 1. 安全防護：如果 e 存在才執行，避免報錯
-    if (e && typeof e.preventDefault === 'function') {
-        e.preventDefault();
-    }
-
-    const statusBar = document.getElementById('ai-status-bar');
-    const btn = document.getElementById('ai-trigger-btn');
-
-    // 2. 鎖定按鈕與更新狀態
-    if (btn) btn.disabled = true;
-    if (statusBar) {
-        statusBar.innerText = "⏳ 正在分析食譜中，請稍候...";
-        statusBar.style.backgroundColor = "#444";
-        statusBar.style.color = "#fff";
-    }
-
-    try {
-        // 3. 關鍵修正：完全不使用 e.target，直接用 ID 抓取，保證安全！
-        const textInput = document.getElementById('ai-text-input');
-        const fileInput = document.getElementById('ai-image-input');
-
-        const text = textInput ? textInput.value : "";
-        // 確保檔案存在才抓取
-        const file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
-
-        if (!text && !file) {
-            throw new Error("請輸入文字或選擇圖片！");
+    // --- 完整修復的 processAI 函式 ---
+    async function processAI(e) {
+        // 1. 最重要的防護：阻止網頁重新整理
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
         }
 
-        const fd = new FormData();
-        if (text) fd.append('text', text);
-        if (file) fd.append('image', file);
+        const statusBar = document.getElementById('ai-status-bar');
+        const btn = document.getElementById('ai-trigger-btn');
 
-        // 4. 發送請求給 AI
-        const res = await fetch('/api/analyze', {
-            method: 'POST',
-            body: fd
-        });
-
-        const data = await res.json(); // 確保這裡有 await
-
-        // --- 請把原本的 if (res.ok) { ... } 整段換成這個 ---
-        if (res.ok) {
-            // 1. 聰明抓取：不管 AI 回傳什麼格式 (陣列/物件) 都通吃
-            let rawData = [];
-            if (Array.isArray(data)) {
-                rawData = data;
-            } else if (data.ingredients && Array.isArray(data.ingredients)) {
-                rawData = data.ingredients;
-            } else if (data.data && Array.isArray(data.data)) {
-                rawData = data.data;
-            }
-
-            if (rawData.length > 0) {
-                 // 2. 格式轉換：把 AI 的資料轉成烘焙計算機看得懂的格式
-                 // 這裡會自動使用 nextId 來產生編號，確保表格功能正常
-                 ingredients = rawData.map((item, idx) => ({
-                     id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
-                     name: item.name || '未知食材', 
-                     weight: Number(item.weight) || 0, 
-                     realPct: 0, 
-                     bakerPct: 0, 
-                     isBase: idx === 0 // 預設第一筆是主食材
-                 }));
-
-                 // 3. 關鍵指令：告訴網頁「資料變了，請重新畫圖！」
-                 // 這行會觸發表格更新、百分比重算
-                 if (typeof setMode === 'function') {
-                     setMode('weight'); 
-                 } else {
-                     console.warn("找不到 setMode，嘗試手動刷新...");
-                 }
-
-                 // 4. 更新綠色狀態列
-                 if (statusBar) {
-                     statusBar.innerText = "✅ 分析完成！資料已填入表格";
-                     statusBar.style.backgroundColor = "#28a745"; 
-                 }
-            } else {
-                throw new Error("AI 回傳了空的資料，無法填寫表格");
-            }
-        } 
-        // --- 貼上結束 (下面接著 else { ... } ) ---
-            } else {
-                throw new Error("AI 回傳格式不正確 (沒有 ingredients)");
-            }
-        } else {
-            throw new Error(data.error || "伺服器錯誤");
-        }
-
-    } catch (err) {
-        console.error(err);
+        // 2. 鎖定按鈕，顯示「分析中」
+        if (btn) btn.disabled = true;
         if (statusBar) {
-            statusBar.innerText = "❌ 發生錯誤：" + err.message;
-            statusBar.style.backgroundColor = "#dc3545"; // 紅色
+            statusBar.innerText = "⏳ 正在分析食譜中，請稍候...";
+            statusBar.style.backgroundColor = "#444";
+            statusBar.style.color = "#fff";
         }
-    } finally {
-        // 5. 無論成功失敗，最後都要解鎖按鈕
-        if (btn) btn.disabled = false;
+
+        try {
+            // 3. 安全抓取資料 (直接用 ID，不依賴 event)
+            const textInput = document.getElementById('ai-text-input');
+            const fileInput = document.getElementById('ai-image-input');
+
+            const text = textInput ? textInput.value : "";
+            const file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
+
+            if (!text && !file) {
+                throw new Error("請輸入文字或選擇圖片！");
+            }
+
+            const fd = new FormData();
+            if (text) fd.append('text', text);
+            if (file) fd.append('image', file);
+
+            // 4. 呼叫 AI API
+            const res = await fetch('/api/analyze', {
+                method: 'POST',
+                body: fd
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // 5. 成功：處理回傳資料
+                let rawData = [];
+                // 容錯邏輯：不管 AI 回傳什麼格式，都試著抓出來
+                if (Array.isArray(data)) {
+                    rawData = data;
+                } else if (data.ingredients && Array.isArray(data.ingredients)) {
+                    rawData = data.ingredients;
+                } else if (data.data && Array.isArray(data.data)) {
+                    rawData = data.data;
+                }
+
+                if (rawData.length > 0) {
+                     // 更新全域 ingredients 變數
+                     ingredients = rawData.map((item, idx) => ({
+                         id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
+                         name: item.name || '未知食材', 
+                         weight: Number(item.weight) || 0, 
+                         realPct: 0, 
+                         bakerPct: 0, 
+                         isBase: idx === 0 
+                     }));
+
+                     // 觸發網頁更新表格
+                     if (typeof setMode === 'function') {
+                         setMode('weight'); 
+                     } else {
+                         console.warn("找不到 setMode，無法自動刷新表格");
+                     }
+
+                     if (statusBar) {
+                         statusBar.innerText = "✅ 分析完成！資料已填入表格";
+                         statusBar.style.backgroundColor = "#28a745"; // 綠色
+                     }
+                } else {
+                    throw new Error("AI 回傳了空的資料");
+                }
+            } else {
+                throw new Error(data.error || "伺服器錯誤");
+            }
+
+        } catch (err) {
+            console.error(err);
+            if (statusBar) {
+                statusBar.innerText = "❌ 發生錯誤：" + err.message;
+                statusBar.style.backgroundColor = "#dc3545"; // 紅色
+            }
+        } finally {
+            // 6. 無論成功失敗，最後都要解鎖按鈕
+            if (btn) btn.disabled = false;
+        }
     }
-}
     
     async function initWakeLock() {
         if ('wakeLock' in navigator) {
             try { await navigator.wakeLock.request('screen'); document.getElementById('wakelock-status').innerText = "螢幕恆亮 ON"; } catch(e){}
         }
     }
-// --- 請貼在 script 的最下方 ---
 
-// 等待網頁全部載入後，才開始綁定按鈕，保證抓得到！
-document.addEventListener('DOMContentLoaded', function() {
-    const btn = document.getElementById('ai-trigger-btn');
-    if (btn) {
-        // 這裡就是告訴按鈕：被點擊(click)時，去執行 processAI
-        btn.addEventListener('click', processAI);
-        console.log("按鈕已成功綁定！"); // 如果成功，F12 會看到這行
-    } else {
-        console.error("找不到按鈕！請檢查 ID 是否正確");
-    }
-});
+    // 等待網頁全部載入後，才開始綁定按鈕，保證抓得到！
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('ai-trigger-btn');
+        if (btn) {
+            btn.addEventListener('click', processAI);
+            console.log("按鈕已成功綁定！"); 
+        } else {
+            console.error("找不到按鈕！請檢查 ID 是否正確");
+        }
+    });
 </script>
 
 </body>
