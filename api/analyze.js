@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     // 使用 JSON 模式 (responseMimeType) 能夠大幅降低解析失敗率
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       generationConfig: { responseMimeType: "application/json" } 
     });
 
