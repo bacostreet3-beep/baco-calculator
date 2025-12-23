@@ -373,20 +373,24 @@
         updateFooter();
     }
 
-    // --- 模式切換 (已修復版: 不再依賴 event.target) ---
+    // --- 模式切換 ---
     function setMode(mode) {
         currentMode = mode;
         
-        // 1. 安全地更新按鈕樣式
+        // 更新按鈕樣式
         const buttons = document.querySelectorAll('.mode-btn');
         buttons.forEach(btn => {
             btn.classList.remove('active');
-            // 檢查按鈕的 onclick 屬性是否包含這個 mode 的名稱
             const attr = btn.getAttribute('onclick');
             if (attr && attr.includes(`'${mode}'`)) {
                 btn.classList.add('active');
             }
         });
+
+        // 特別處理：如果進入烘焙百分比模式，清空所有預設基準，強制使用者重選
+        if (mode === 'baker_pct') {
+            ingredients.forEach(i => i.isBase = false);
+        }
 
         const globalInput = document.getElementById('total-weight-input-group');
         if (mode === 'real_pct' || mode === 'baker_pct') {
@@ -410,6 +414,9 @@
         document.getElementById('th-base').style.display = showBaseCol ? '' : 'none';
         document.getElementById('tf-base').style.display = showBaseCol ? '' : 'none';
 
+        // 檢查是否有選中的基準
+        const hasBase = ingredients.some(i => i.isBase);
+
         ingredients.forEach((item, index) => {
             const tr = document.createElement('tr');
             
@@ -420,8 +427,17 @@
             } else if (currentMode === 'real_pct') {
                 wDis = true; rDis = false; bDis = true;
             } else if (currentMode === 'baker_pct') {
-                if (item.isBase) { wDis = false; bDis = true; } 
-                else { wDis = true; bDis = false; }
+                // 重量始終是計算出來的，所以唯讀
+                wDis = true;
+                
+                if (!hasBase) {
+                    // 如果沒有選基準，烘焙百分比全部鎖死，直到使用者勾選
+                    bDis = true;
+                } else {
+                    // 有選基準：基準項唯讀(100%)，其他可輸入
+                    if (item.isBase) bDis = true; 
+                    else bDis = false;
+                }
             } else if (currentMode === 'single_base') {
                 wDis = !item.isBase; 
                 rDis = true; 
@@ -431,6 +447,7 @@
             let baseTdStyle = showBaseCol ? '' : 'display:none;';
             let baseHtml = `<td style="${baseTdStyle}"><input type="radio" name="baseItem" ${item.isBase ? 'checked' : ''} onchange="onBaseChange(${index})"></td>`;
 
+            // 使用 type="number" 以方便手機輸入，但配合 JS 處理空值顯示
             tr.innerHTML = `
                 ${baseHtml}
                 <td><input type="text" id="name-${item.id}" value="${item.name}" oninput="onNameInput(${index}, this.value)"></td>
@@ -460,8 +477,16 @@
     function onNameInput(index, val) { ingredients[index].name = val; }
 
     function onBaseChange(index) {
+        // 先清空所有基準
         ingredients.forEach(i => i.isBase = false);
+        // 設定新的基準
         ingredients[index].isBase = true;
+        
+        // 如果是烘焙百分比模式，選中的這個直接設為 100%
+        if (currentMode === 'baker_pct') {
+            ingredients[index].bakerPct = 100;
+        }
+        
         buildTableStructure();
         updateCalculations(null);
     }
@@ -472,7 +497,13 @@
         const totalGlobalInput = document.getElementById('total-weight-global');
         let totalW = 0;
         let flourW = 0;
-        let baseItem = ingredients.find(i => i.isBase) || ingredients[0];
+        
+        // 在新邏輯下，baseItem 可能是 undefined
+        let baseItem = ingredients.find(i => i.isBase);
+        // 為了相容其他模式，如果沒有 baseItem 且不是 baker_pct，預設第一個 (但 baker_pct 強制要求手選)
+        if (!baseItem && currentMode !== 'baker_pct') {
+            baseItem = ingredients[0];
+        }
 
         if (currentMode === 'weight') {
             totalW = ingredients.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
@@ -493,7 +524,15 @@
             });
         }
         else if (currentMode === 'baker_pct') {
-            if (baseItem) baseItem.bakerPct = 100;
+            // 如果沒有基準，什麼都不算，直接更新視圖 (顯示空白)
+            if (!baseItem) {
+                 updateViewValues(sourceId, type);
+                 updateFooter(0, 0);
+                 return;
+            }
+
+            baseItem.bakerPct = 100; // 確保基準是 100
+            
             if (type === 'global') {
                 totalW = parseFloat(totalGlobalInput.value) || 0;
                 let sumBaker = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
@@ -501,16 +540,26 @@
                 ingredients.forEach(i => { i.weight = flourW * (i.bakerPct / 100); });
             } 
             else if (type === 'w' && baseItem && sourceId === baseItem.id) {
+                // 這裡其實不會發生，因為 baker_pct 下重量是唯讀的，但保留邏輯
                 flourW = Number(baseItem.weight) || 0;
                 ingredients.forEach(i => { if (i !== baseItem) i.weight = flourW * (i.bakerPct / 100); });
                 totalW = ingredients.reduce((s, i) => s + i.weight, 0);
                 totalGlobalInput.value = formatNum(totalW);
             }
             else {
-                flourW = baseItem ? (Number(baseItem.weight)||0) : 0;
-                ingredients.forEach(i => { if (!i.isBase) i.weight = flourW * (i.bakerPct / 100); });
-                totalW = ingredients.reduce((s, i) => s + i.weight, 0);
-                totalGlobalInput.value = formatNum(totalW);
+                // 修改了某個百分比，或是剛選了基準，重新計算重量
+                // 注意：這裡假設「總重量」是固定的，所以要倒推 Flour Weight
+                // 公式： TotalWeight = Flour * (SumBaker / 100)
+                // 所以 Flour = TotalWeight / (SumBaker / 100)
+                totalW = parseFloat(totalGlobalInput.value) || 0;
+                let sumBaker = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
+                
+                if (sumBaker > 0) {
+                    flourW = totalW / (sumBaker / 100);
+                    ingredients.forEach(i => { i.weight = flourW * (i.bakerPct / 100); });
+                } else {
+                    ingredients.forEach(i => i.weight = 0);
+                }
             }
             ingredients.forEach(i => { i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; });
         }
@@ -538,11 +587,25 @@
     }
 
     function updateViewValues(skipId = null, skipType = null) {
+        // 檢查是否有選中的基準 (用於判斷是否顯示 Baker Pct)
+        const hasBase = ingredients.some(i => i.isBase);
+
         ingredients.forEach(item => {
             const shouldSkip = (t) => (item.id === skipId && t === skipType);
             if (!shouldSkip('w')) { const el = document.getElementById(`w-${item.id}`); if (el) el.value = formatNum(item.weight); }
             if (!shouldSkip('r')) { const el = document.getElementById(`r-${item.id}`); if (el) el.value = formatNum(item.realPct); }
-            if (!shouldSkip('b')) { const el = document.getElementById(`b-${item.id}`); if (el) el.value = formatNum(item.bakerPct); }
+            
+            if (!shouldSkip('b')) { 
+                const el = document.getElementById(`b-${item.id}`); 
+                if (el) {
+                    // 如果是烘焙百分比模式，且沒有任何基準被選中，則顯示空白
+                    if (currentMode === 'baker_pct' && !hasBase) {
+                        el.value = ''; 
+                    } else {
+                        el.value = formatNum(item.bakerPct);
+                    }
+                }
+            }
         });
     }
 
@@ -555,7 +618,14 @@
     function updateFooter(total, flour) {
         const sumW = ingredients.reduce((s,i)=>s+(Number(i.weight)||0),0);
         const sumReal = ingredients.reduce((s,i)=>s+(Number(i.realPct)||0),0);
-        let sumBaker = (flour > 0) ? (sumW / flour * 100) : 0;
+        
+        let sumBaker = 0;
+        // 在 baker_pct 模式且沒基準時，顯示 - 或 0
+        if (currentMode === 'baker_pct' && !ingredients.some(i => i.isBase)) {
+            sumBaker = 0; 
+        } else {
+            sumBaker = (flour > 0) ? (sumW / flour * 100) : 0;
+        }
 
         document.getElementById('sum-weight').innerText = formatNum(sumW);
         const sumRealEl = document.getElementById('sum-real-pct');
@@ -567,10 +637,17 @@
         } else {
             sumRealEl.className = '';
         }
-        document.getElementById('sum-baker-pct').innerText = formatNum(sumBaker) + '%';
+        
+        const sumBakerEl = document.getElementById('sum-baker-pct');
+        if (currentMode === 'baker_pct' && !ingredients.some(i => i.isBase)) {
+            sumBakerEl.innerText = '-';
+        } else {
+            sumBakerEl.innerText = formatNum(sumBaker) + '%';
+        }
     }
 
     function addRow() {
+        // 新增時不預設 isBase
         ingredients.push({ id: nextId++, name: '', weight: 0, realPct: 0, bakerPct: 0, isBase: false });
         buildTableStructure();
     }
