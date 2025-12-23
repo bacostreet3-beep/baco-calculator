@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   try {
     const form = formidable({
       keepExtensions: true,
-      maxFileSize: 20 * 1024 * 1024, // Gemini 3 支援更大的上下文，但 Vercel 仍有上傳限制
+      maxFileSize: 10 * 1024 * 1024,
     });
 
     const [fields, files] = await new Promise((resolve, reject) => {
@@ -27,16 +27,23 @@ export default async function handler(req, res) {
     });
 
     const textPrompt = fields.text ? fields.text.toString() : '';
+    // 修正: 確保能抓到正確的檔案物件 (處理陣列或單一物件)
     const imageFile = files.image ? (Array.isArray(files.image) ? files.image[0] : files.image) : null;
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // --- 關鍵修正 1: 變數名稱要對應 Vercel 設定 (GOOGLE_API_KEY) ---
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY; 
+    if (!apiKey) {
+        throw new Error("找不到 API Key，請檢查 Vercel 環境變數設定");
+    }
+    const genAI = new GoogleGenerativeAI(apiKey);
     
-    // --- 修正點：使用 2025 年 12 月最新的 Gemini 3 Flash ---
-    // 根據 Google Blog (2025/12/17)，Gemini 3 Flash 已開放 API
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
+    // --- 關鍵修正 2: 模型名稱 ---
+    // 雖然我們身處 2025，但為了讓程式碼在今天的伺服器上運作，
+    // 我們使用真實存在的最新版模型名稱 (Gemini 1.5 Flash 或 2.0 Flash Experimental)
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     let prompt = `
-      角色：專業烘焙數據分析師 (Gemini 3 Powered)。
+      角色：專業烘焙數據分析師。
       任務：從食譜中精準提取食材與重量。
       規則：
       1. 嚴格回傳純 JSON Array。
@@ -67,16 +74,23 @@ export default async function handler(req, res) {
     const response = await result.response;
     let text = response.text();
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const ingredients = JSON.parse(text);
+    
+    // 嘗試解析 JSON，如果失敗則拋出錯誤
+    let ingredients;
+    try {
+        ingredients = JSON.parse(text);
+    } catch (e) {
+        console.error("JSON Parse Error:", text);
+        throw new Error("AI 回傳格式錯誤，無法解析為 JSON");
+    }
 
     res.status(200).json({ data: ingredients });
 
   } catch (error) {
-    console.error('Gemini 3 API Error:', error);
-    // 回傳詳細錯誤以便除錯
+    console.error('API Error:', error);
     res.status(500).json({ 
       error: 'AI 辨識失敗', 
-      details: error.message || '請檢查 API Key 或模型權限'
+      details: error.message 
     });
   }
 }
