@@ -252,7 +252,7 @@
         <div class="ai-controls-row">
             <input type="file" id="ai-image-input" accept="image/*" onchange="handleFileSelect(this)">
             
-<button onclick="processAI(event)" ... >開始辨識</button>
+<button id="ai-trigger-btn" class="btn-analyze">開始辨識</button>
         </div>
 
         <div id="ai-status-bar" class="ai-status-bar">
@@ -710,6 +710,19 @@
             try { await navigator.wakeLock.request('screen'); document.getElementById('wakelock-status').innerText = "螢幕恆亮 ON"; } catch(e){}
         }
     }
+// --- 請貼在 script 的最下方 ---
+
+// 等待網頁全部載入後，才開始綁定按鈕，保證抓得到！
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('ai-trigger-btn');
+    if (btn) {
+        // 這裡就是告訴按鈕：被點擊(click)時，去執行 processAI
+        btn.addEventListener('click', processAI);
+        console.log("按鈕已成功綁定！"); // 如果成功，F12 會看到這行
+    } else {
+        console.error("找不到按鈕！請檢查 ID 是否正確");
+    }
+});
 </script>
 
 </body>
