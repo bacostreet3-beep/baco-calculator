@@ -1,17 +1,17 @@
 {
-  "name": "baking-calculator",
-  "version": "0.1.0",
-  "private": true,
+  "name": "baco-street-calculator",
+  "version": "2.0.0",
+  "description": "Baking Calculator with Gemini 2.5 Flash AI",
+  "main": "index.html",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "node api/analyze.js"
   },
   "dependencies": {
-    "next": "14.2.3",
-    "react": "^18",
-    "react-dom": "^18",
-    "@google/generative-ai": "^0.21.0"
+    "@google/generative-ai": "^0.21.0",
+    "formidable": "^3.5.1",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
