@@ -782,7 +782,7 @@
         });
     }
 
-    // --- AI 拖曳與處理 ---
+    // --- AI 拖曳與處理 (修正為 JSON 傳輸模式) ---
     function initDragAndDrop() {
         const dropZone = document.getElementById('ai-text-input');
         
@@ -817,6 +817,14 @@
         }
     }
 
+    // 圖片轉 Base64
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+
     async function processAI(e) {
         if (e && typeof e.preventDefault === 'function') {
             e.preventDefault();
@@ -824,6 +832,8 @@
 
         const statusBar = document.getElementById('ai-status-bar');
         const btn = document.getElementById('ai-trigger-btn');
+        const textInput = document.getElementById('ai-text-input');
+        const fileInput = document.getElementById('ai-image-input');
 
         if (btn) btn.disabled = true;
         if (statusBar) {
@@ -832,37 +842,43 @@
         }
 
         try {
-            const textInput = document.getElementById('ai-text-input');
-            const fileInput = document.getElementById('ai-image-input');
-
             const text = textInput ? textInput.value : "";
             const file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
 
             if (!text && !file) {
                 throw new Error("請輸入文字或選擇圖片！");
             }
+            
+            // 檢查圖片大小 (限制 8MB)
+            if (file && file.size > 8 * 1024 * 1024) {
+                 throw new Error("圖片太大了！請使用小於 8MB 的圖片");
+            }
 
-            const fd = new FormData();
-            if (text) fd.append('text', text);
-            if (file) fd.append('image', file);
+            // 準備資料
+            let payload = { text: text };
+            if (file) {
+                payload.image = await toBase64(file);
+            }
 
             const res = await fetch('/api/analyze', {
                 method: 'POST',
-                body: fd
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
-            const data = await res.json();
+            // 先解析文字避免直接 JSON.parse 報錯
+            const resText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(resText);
+            } catch (e) {
+                console.error("Raw response:", resText);
+                throw new Error("伺服器回應格式錯誤");
+            }
 
             if (res.ok) {
-                let rawData = [];
-                if (Array.isArray(data)) {
-                    rawData = data;
-                } else if (data.ingredients && Array.isArray(data.ingredients)) {
-                    rawData = data.ingredients;
-                } else if (data.data && Array.isArray(data.data)) {
-                    rawData = data.data;
-                }
-
+                let rawData = data.data || [];
+                
                 if (rawData.length > 0) {
                      ingredients = rawData.map((item, idx) => ({
                          id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
@@ -882,7 +898,7 @@
                          statusBar.style.color = "var(--success-green)"; 
                      }
                 } else {
-                    throw new Error("AI 回傳了空的資料");
+                    throw new Error("AI 無法辨識出任何食材，請試試看更清晰的照片");
                 }
             } else {
                 throw new Error(data.error || "伺服器錯誤");
@@ -907,12 +923,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const btn = document.getElementById('ai-trigger-btn');
-        if (btn) {
-            btn.addEventListener('click', processAI);
-            console.log("按鈕已成功綁定！"); 
-        } else {
-            console.error("找不到按鈕！請檢查 ID 是否正確");
-        }
+        if (btn) btn.addEventListener('click', processAI);
     });
 </script>
 
