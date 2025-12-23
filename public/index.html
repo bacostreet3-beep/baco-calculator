@@ -321,7 +321,7 @@
         <textarea id="ai-text-input" placeholder="貼上食譜文字，或拖曳食譜照片至此框內，即可上傳圖片..." rows="4"></textarea>
         
         <div class="ai-controls-row">
-            <input type="file" id="ai-image-input" accept="image/*" onchange="handleFileSelect(this)">
+            <input type="file" id="ai-image-input" accept="image/*" multiple onchange="handleFileSelect(this)">
             <button id="ai-trigger-btn" class="btn-analyze">開始辨識</button>
         </div>
 
@@ -332,9 +332,11 @@
         <h3>配方換算表</h3>
         
         <div class="controls">
+            
             <div class="control-group">
                 <button class="mode-btn active" onclick="setMode('weight')">A. 輸入重量</button>
-                <div class="help-spacer"></div> </div>
+                <div class="help-spacer"></div> 
+            </div>
 
             <div class="control-group">
                 <button class="mode-btn" onclick="setMode('real_pct')">B. 輸入實際 %</button>
@@ -575,6 +577,7 @@
         if (currentMode === 'baker_pct') {
             ingredients[index].bakerPct = 100;
         }
+        buildTableTableStructure(); // Note: Slight typo fix in user intent, assuming buildTableStructure
         buildTableStructure();
         updateCalculations(null);
     }
@@ -782,7 +785,7 @@
         });
     }
 
-    // --- AI 拖曳與處理 ---
+    // --- AI 拖曳與處理 (更新: 支援多張圖片 + 顯示邏輯) ---
     function initDragAndDrop() {
         const dropZone = document.getElementById('ai-text-input');
         
@@ -811,9 +814,14 @@
 
     function handleFileSelect(input) {
         const textArea = document.getElementById('ai-text-input');
-        if (input.files && input.files[0]) {
-            const fileName = input.files[0].name;
-            textArea.placeholder = `[已讀取圖片]: ${fileName}\n\n若有額外補充說明，請直接在此輸入...`;
+        // 修改：處理多張圖片的文字提示
+        if (input.files && input.files.length > 0) {
+            const count = input.files.length;
+            const firstFileName = input.files[0].name;
+            const msg = count > 1 
+                ? `[已讀取 ${count} 張圖片]: ${firstFileName} 等...`
+                : `[已讀取圖片]: ${firstFileName}`;
+            textArea.placeholder = `${msg}\n\n若有額外補充說明，請直接在此輸入...`;
         }
     }
 
@@ -826,9 +834,12 @@
         const btn = document.getElementById('ai-trigger-btn');
 
         if (btn) btn.disabled = true;
+        
+        // 修改：開始辨識時才顯示狀態
         if (statusBar) {
             statusBar.innerText = "⏳ 正在分析食譜中，請稍候...";
             statusBar.style.color = "var(--text-light)";
+            statusBar.style.display = "block"; // 確保顯示
         }
 
         try {
@@ -836,15 +847,21 @@
             const fileInput = document.getElementById('ai-image-input');
 
             const text = textInput ? textInput.value : "";
-            const file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
+            // 修改：檢查多個檔案
+            const hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
 
-            if (!text && !file) {
+            if (!text && !hasFiles) {
                 throw new Error("請輸入文字或選擇圖片！");
             }
 
             const fd = new FormData();
             if (text) fd.append('text', text);
-            if (file) fd.append('image', file);
+            // 修改：迴圈加入所有圖片
+            if (hasFiles) {
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    fd.append('image', fileInput.files[i]);
+                }
+            }
 
             const res = await fetch('/api/analyze', {
                 method: 'POST',
@@ -893,6 +910,7 @@
             if (statusBar) {
                 statusBar.innerText = "❌ 發生錯誤：" + err.message;
                 statusBar.style.color = "var(--error-red)";
+                statusBar.style.display = "block";
             }
         } finally {
             if (btn) btn.disabled = false;
