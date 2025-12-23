@@ -1,0 +1,8 @@
+{
+  "name": "baco-calculator",
+  "version": "1.0.0",
+  "dependencies": {
+    "@google/generative-ai": "^0.1.0",
+    "formidable": "^3.5.1"
+  }
+}
