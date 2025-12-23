@@ -30,16 +30,15 @@ export default async function handler(req, res) {
     // 修正: 確保能抓到正確的檔案物件 (處理陣列或單一物件)
     const imageFile = files.image ? (Array.isArray(files.image) ? files.image[0] : files.image) : null;
 
-    // --- 關鍵修正 1: 變數名稱要對應 Vercel 設定 (GOOGLE_API_KEY) ---
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY; 
+const apiKey = process.env.GOOGLE_API_KEY; // 修正變數名稱
     if (!apiKey) {
-        throw new Error("找不到 API Key，請檢查 Vercel 環境變數設定");
+        throw new Error("找不到 API Key (GOOGLE_API_KEY)");
     }
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // --- 關鍵修正 2: 模型名稱 ---
-    // 雖然我們身處 2025，但為了讓程式碼在今天的伺服器上運作，
-    // 我們使用真實存在的最新版模型名稱 (Gemini 1.5 Flash 或 2.0 Flash Experimental)
+    // --- 修正：使用 2025 年 12 月最新的 Gemini 3 Flash ---
+    // 根據文件，Gemini 1.5 已經在 9 月停止支援
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let prompt = `
