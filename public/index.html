@@ -373,11 +373,20 @@
         updateFooter();
     }
 
-    // --- 模式切換 ---
+    // --- 模式切換 (已修復版: 不再依賴 event.target) ---
     function setMode(mode) {
         currentMode = mode;
-        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
+        
+        // 1. 安全地更新按鈕樣式
+        const buttons = document.querySelectorAll('.mode-btn');
+        buttons.forEach(btn => {
+            btn.classList.remove('active');
+            // 檢查按鈕的 onclick 屬性是否包含這個 mode 的名稱
+            const attr = btn.getAttribute('onclick');
+            if (attr && attr.includes(`'${mode}'`)) {
+                btn.classList.add('active');
+            }
+        });
 
         const globalInput = document.getElementById('total-weight-input-group');
         if (mode === 'real_pct' || mode === 'baker_pct') {
