@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     // --- 關鍵修正 2: 模型名稱 ---
     // 雖然我們身處 2025，但為了讓程式碼在今天的伺服器上運作，
     // 我們使用真實存在的最新版模型名稱 (Gemini 1.5 Flash 或 2.0 Flash Experimental)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let prompt = `
       角色：專業烘焙數據分析師。
