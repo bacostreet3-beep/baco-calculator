@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     // 設定 Google AI
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let prompt = `
       你是專業烘焙助手。請分析提供的食譜內容（文字或圖片）。
