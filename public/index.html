@@ -18,6 +18,7 @@
             --btn-hover: #e0e0e0;
             --error-red: #d32f2f;
             --success-green: #2e7d32;
+            --highlight-bg: #fffbe6; /* 基準食材底色 */
         }
 
         body {
@@ -170,6 +171,11 @@
             color: var(--text-gold);
             font-weight: 600;
             font-size: 0.95em;
+        }
+
+        /* 基準食材的高亮樣式 */
+        .base-row {
+            background-color: var(--highlight-bg);
         }
 
         /* 3. 手機版百分比樣式優化 */
@@ -472,9 +478,9 @@
                 <tr>
                     <td id="tf-base"></td>
                     <td style="text-align:right; font-size:13px; color:var(--text-gold);">
-                        <span id="base-sum-label" style="display:none;">基準總重:</span>
+                        <span id="base-sum-label" style="display:none; font-weight:bold;">基準食材總重量:</span>
                     </td>
-                    <td style="font-size:13px; color:var(--text-gold); font-weight:bold;">
+                    <td style="font-size:13px; color:var(--text-gold); font-weight:bold; text-align: center;">
                         <span id="base-sum-val" style="display:none;">0</span>
                     </td>
                     <td colspan="3"></td>
@@ -549,7 +555,7 @@
     // --- 使用說明文字 (2. 更新說明) ---
     const helpTexts = {
         'real_pct': '【輸入實際 % 模式說明】\n\n1. 設定「配方總重量」。\n2. 輸入每個食材佔總重量的「實際百分比」(總和應為 100%)。\n\n系統會自動計算出每個食材的公克數。',
-        'baker_pct': '【輸入烘焙 % 模式說明】\n\n1. 請勾選「基準食材」(可複選)。\n   例如：製作老麵麵包時，可同時勾選「中種麵粉」與「本種麵粉」。\n\n2. 這些被勾選的基準食材，其烘焙百分比加總應為 100%。\n   (例如：中種麵粉70% + 本種麵粉30% = 100%)\n\n3. 輸入其他食材相對於基準總量的百分比。',
+        'baker_pct': '【輸入烘焙 % 模式說明】\n\n1. 請勾選「基準食材」(可複選)。\n   例如：製作老麵麵包時，可同時勾選「中種麵粉」與「本種麵粉」。\n\n2. 這些被勾選的基準食材會自動加上底色。\n3. 所有基準食材的總重量會成為 100% 的基準，系統會自動計算各食材的比例。',
         'single_base': '【修改單一食材重量說明】\n\n1. 勾選您想要修改的那個食材。\n2. 直接修改它的重量。\n\n系統會依照原本的比例，自動等比例調整其他所有食材的重量，確保配方風味不變。'
     };
 
@@ -623,6 +629,11 @@
         ingredients.forEach((item, index) => {
             const tr = document.createElement('tr');
             
+            // ★ 新增：如果該食材是基準，則加上 base-row class 顯示底色
+            if (item.isBase && currentMode === 'baker_pct') {
+                tr.classList.add('base-row');
+            }
+
             let wDis = false, rDis = true, bDis = true;
             
             if (currentMode === 'weight') {
@@ -640,15 +651,12 @@
 
             let baseTdStyle = showBaseCol ? '' : 'display:none;';
             
-            // 1. 修改：Checkbox 實現複選
-            // 在 single_base 模式下維持單選 (Radio 行為)，在 baker_pct 下為複選
             let inputType = (currentMode === 'baker_pct') ? 'checkbox' : 'radio';
             
             let baseHtml = `<td style="${baseTdStyle}">
                 <input type="${inputType}" name="baseItem" ${item.isBase ? 'checked' : ''} onchange="onBaseChange(${index})" style="cursor:pointer; width: 18px; height: 18px;">
             </td>`;
 
-            // 3. 修改：百分比輸入框使用 wrapper 包裹，符號縮小靠右
             const pctInput = (id, val, readonly, handler) => `
                 <div class="pct-input-wrapper">
                     <input type="number" id="${id}" step="any" value="${val}" ${readonly ? 'readonly' : ''} oninput="${handler}">
@@ -688,11 +696,7 @@
         if (currentMode === 'baker_pct') {
             // 1. 複選模式：切換狀態
             ingredients[index].isBase = !ingredients[index].isBase;
-
-            // ★ 修正：當勾選為基準時，自動將該食材的烘焙百分比設為 100
-            if (ingredients[index].isBase) {
-                ingredients[index].bakerPct = 100;
-            }
+            // 不再強制設為100%，而是保留重量，並讓 updateCalculations 計算出正確比例
         } else {
             // 單選模式
             ingredients.forEach(i => i.isBase = false);
@@ -700,8 +704,9 @@
         }
 
         buildTableStructure();
-        // ★ 修正：這裡多加了 'b' 參數，確保數值重算
-        updateCalculations(null, 'b');
+        // ★ 關鍵修正：這裡傳入 'structure'，告訴系統不是使用者輸入百分比(b)，而是結構改變
+        // 這樣系統會保留重量，並反算出新的 Baker% 分配 (例如 100g:70g => 58.8%:41.2%)
+        updateCalculations(null, 'structure');
     }
 
     function onGlobalTotalChange() { updateCalculations(null, 'global'); }
@@ -719,9 +724,11 @@
              baseItems = [ingredients[0]];
         }
 
+        // 先計算目前的基準總重量 (無論哪種模式，計算 % 時都需要這個分母)
+        totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+
         if (currentMode === 'weight') {
             totalW = ingredients.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
-            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
             
             ingredients.forEach(i => {
                 i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0;
@@ -733,6 +740,7 @@
             ingredients.forEach(i => {
                 i.weight = totalW * (i.realPct / 100);
             });
+            // 重量變更後，重新計算基準總重
             totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
             ingredients.forEach(i => {
                 i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0;
@@ -741,6 +749,7 @@
         else if (currentMode === 'baker_pct') {
             if (baseItems.length === 0) return;
 
+            // 如果是從輸入框輸入 Baker% 或 Global Weight 觸發的計算
             if (type === 'global' || type === 'b') {
                 totalW = parseFloat(totalGlobalInput.value) || 0;
                 
@@ -748,21 +757,36 @@
                 let sumBakerAll = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
                 
                 if (sumBakerAll > 0) {
-                    totalBaseW = totalW / (sumBakerAll / 100);
+                    // 推算基準總重
+                    let calculatedBaseW = totalW / (sumBakerAll / 100);
+                    
+                    // 根據比例分配重量
                     ingredients.forEach(i => {
-                        i.weight = totalBaseW * (i.bakerPct / 100);
+                        i.weight = calculatedBaseW * (i.bakerPct / 100);
                     });
+                    
+                    // 更新 totalBaseW 以便 updateFooter 顯示正確
+                    totalBaseW = calculatedBaseW;
                 } else {
                     ingredients.forEach(i => i.weight = 0);
+                    totalBaseW = 0;
                 }
             } 
+            
+            // ★ 若是因為勾選/取消勾選基準食材(type='structure')，或其他狀況
+            // 我們需要確保所有食材的 Baker % 是正確反映當前重量的
+            if (type !== 'b') { 
+                 totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+                 ingredients.forEach(i => {
+                    i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0;
+                 });
+            }
             
             // 更新 Real %
             totalW = ingredients.reduce((s, i) => s + i.weight, 0); 
             ingredients.forEach(i => { i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; });
         }
         else if (currentMode === 'single_base') {
-            // 此模式下 baseItems 只有一個
             let baseItem = baseItems[0];
             if (baseItem && type === 'w' && sourceId === baseItem.id) {
                 if (baseItem.realPct > 0) {
@@ -807,7 +831,7 @@
         const sumReal = ingredients.reduce((s,i)=>s+(Number(i.realPct)||0),0);
         
         let sumBaker = 0;
-        // 計算 Baker % 總和
+        // 計算 Baker % 總和 (相對於基準總重)
         if (totalBase > 0) {
              sumBaker = (sumW / totalBase) * 100;
         }
@@ -830,13 +854,13 @@
             sumBakerEl.innerText = formatNum(sumBaker) + '%';
         }
 
-        // 1. 新增：顯示基準總重
+        // 顯示基準總重
         const baseSumLabel = document.getElementById('base-sum-label');
         const baseSumVal = document.getElementById('base-sum-val');
         
         if (currentMode === 'baker_pct') {
             baseSumLabel.style.display = 'inline';
-            baseSumVal.style.display = 'inline';
+            baseSumVal.style.display = 'inline-block'; // 確保寬度正常
             baseSumVal.innerText = formatNum(totalBase) + 'g';
         } else {
             baseSumLabel.style.display = 'none';
@@ -868,7 +892,6 @@
         const srcDiv = document.getElementById('src-inputs');
         const dstDiv = document.getElementById('dst-inputs');
         
-        // 4. 修改：將 Placeholder 改為固定標籤的結構，且靠右對齊
         const makeInput = (id, label, unit, defaultVal = '') => `
             <div class="mold-input-row">
                 <span class="mold-label">${label}</span>
@@ -1002,7 +1025,6 @@
             if (text) fd.append('text', text);
             if (file) fd.append('image', file);
 
-            // 這裡需替換為您真實的後端 API
             const res = await fetch('/api/analyze', {
                 method: 'POST',
                 body: fd
