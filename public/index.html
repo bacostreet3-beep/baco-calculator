@@ -97,7 +97,40 @@
         }
 
         /* 使用說明小按鈕 */
+        /* 使用說明小按鈕 - 手機版最終修正 */
         .help-btn {
+            font-size: 12px;
+            color: var(--text-light);
+            text-decoration: none; /* 去除底線 */
+            cursor: pointer;
+            background: none;
+            border: none;
+            
+            /* 關鍵：增加點擊範圍，但限制在文字周圍 */
+            display: inline-block; 
+            padding: 8px 15px;     /* 上下左右都增加一點隱形點擊區 */
+            margin: 0;             /* 歸零以免跑版 */
+            
+            position: relative;    /* 配合 z-index 使用 */
+            z-index: 99;           /* 強制浮在最上層，確保 JavaScript 收得到點擊 */
+            
+            /* 手機版點擊優化 */
+            -webkit-tap-highlight-color: transparent; /* 去除預設的灰色背景塊 */
+            user-select: none;     /* 防止雙擊時選取到文字 */
+        }
+
+        /* 手機按下去的瞬間，文字會稍微縮小變淡，提供回饋感 */
+        .help-btn:active {
+            opacity: 0.6;
+            transform: scale(0.95);
+        }
+
+        /* 電腦版滑鼠懸停才變色 (避免手機版第一下點擊被吃掉) */
+        @media (hover: hover) {
+            .help-btn:hover {
+                color: var(--text-gold);
+            }
+        } {
             font-size: 12px;
             color: var(--text-light);
             text-decoration: none; /* 去除底線，讓箭頭更乾淨 */
