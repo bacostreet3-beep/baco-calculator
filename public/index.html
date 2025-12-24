@@ -350,6 +350,7 @@ input[type=number] {
 
         /* Media Queries */
        /* Media Queries - 手機版樣式調整 */
+      /* Media Queries - 手機版樣式調整 */
         @media (max-width: 600px) {
             .container { padding: 10px; }
             .card { padding: 15px; }
@@ -363,32 +364,46 @@ input[type=number] {
             /* 手機版表格優化 */
             .recipe-table th, .recipe-table td {
                 padding: 8px 1px; /* 儲存格內距縮到最小 */
-                font-size: 13px;  /* 字體微調適應小螢幕 */
+                font-size: 13px;
+                border-bottom: 1px solid #eee; /* 保持表格分隔線 */
             }
 
-            /* --- 新增這段：縮小手機版輸入框內距，讓數字不會被切掉 --- */
+            /* --- 重點修改：去除輸入框邊框與背景，空間最大化 --- */
             .recipe-table input {
-                padding: 6px 2px !important; /* 強制覆蓋原本的 10px 設定 */
-                font-size: 13px;
-                text-align: center;    /* 文字置中，解決被切掉的問題 */
+                border: none !important;              /* 去除四邊邊框 */
+                background-color: transparent !important; /* 背景透明 */
+                padding: 6px 0 !important;            /* 左右完全不留白 */
+                border-radius: 0 !important;          /* 去除圓角 */
+                box-shadow: none !important;          /* 去除陰影 */
+                
+                font-size: 14px;       /* 空間變大了，字體可以稍微大一點點 */
+                text-align: center;    /* 文字置中 */
+                width: 100%;           /* 寬度填滿 */
+                -webkit-appearance: none; /* 移除 iOS 預設樣式 */
+            }
+
+            /* 點擊輸入框時，底部出現金色線條，提示目前輸入位置 */
+            .recipe-table input:focus {
+                outline: none;
+                border-bottom: 2px solid var(--text-gold) !important;
+                background-color: transparent !important;
             }
             
-            /* 針對重量欄位特別指定置中 (如果被全域覆蓋的話) */
+            /* 針對重量欄位特別指定置中 */
             #recipe-body input[id^="w-"] { 
                 text-align: center !important; 
-                padding-right: 2px !important; 
             }
             
-            /* 調整手機版欄位寬度 (修改數值) */
+            /* 調整手機版欄位寬度 */
             #th-base { width: 10% !important; }
-            #th-name { width: 34% !important; }   /* 放大食材欄位 (原 30%) */
-            #th-weight { width: 22% !important; } /* 放大重量欄位 (原 20%) */
-            #th-real { width: 15% !important; }   /* 縮小實際% (原 20%) */
-            #th-baker { width: 15% !important; }  /* 縮小烘焙% (原 20%) */
+            #th-name { width: 34% !important; }   
+            #th-weight { width: 22% !important; } 
+            #th-real { width: 15% !important; }   
+            #th-baker { width: 15% !important; }  
             
-            /* 微調百分比符號與輸入框 */
-            .pct-symbol { font-size: 10px; right: 2px; } 
-            .pct-input-wrapper input { padding-right: 12px !important; } /* 縮小 % 符號預留空間 */
+            /* 微調百分比符號 */
+            .pct-symbol { font-size: 10px; right: 0px; color: #ccc; } 
+            .pct-input-wrapper input { padding-right: 10px !important; }
         }
     </style>
 </head>
