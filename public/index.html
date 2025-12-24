@@ -349,8 +349,6 @@ input[type=number] {
         .sum-ok { color: var(--success-green) !important; font-weight: bold; }
 
         /* Media Queries */
-       /* Media Queries - 手機版樣式調整 */
-      /* Media Queries - 手機版樣式調整 */
         @media (max-width: 600px) {
             .container { padding: 10px; }
             .card { padding: 15px; }
@@ -363,47 +361,18 @@ input[type=number] {
 
             /* 手機版表格優化 */
             .recipe-table th, .recipe-table td {
-                padding: 8px 1px; /* 儲存格內距縮到最小 */
+                padding: 8px 2px;
                 font-size: 13px;
-                border-bottom: 1px solid #eee; /* 保持表格分隔線 */
-            }
-
-            /* --- 重點修改：去除輸入框邊框與背景，空間最大化 --- */
-            .recipe-table input {
-                border: none !important;              /* 去除四邊邊框 */
-                background-color: transparent !important; /* 背景透明 */
-                padding: 6px 0 !important;            /* 左右完全不留白 */
-                border-radius: 0 !important;          /* 去除圓角 */
-                box-shadow: none !important;          /* 去除陰影 */
-                
-                font-size: 14px;       /* 空間變大了，字體可以稍微大一點點 */
-                text-align: center;    /* 文字置中 */
-                width: 100%;           /* 寬度填滿 */
-                -webkit-appearance: none; /* 移除 iOS 預設樣式 */
-            }
-
-            /* 點擊輸入框時，底部出現金色線條，提示目前輸入位置 */
-            .recipe-table input:focus {
-                outline: none;
-                border-bottom: 2px solid var(--text-gold) !important;
-                background-color: transparent !important;
-            }
-            
-            /* 針對重量欄位特別指定置中 */
-            #recipe-body input[id^="w-"] { 
-                text-align: center !important; 
             }
             
             /* 調整手機版欄位寬度 */
             #th-base { width: 10% !important; }
-            #th-name { width: 34% !important; }   
-            #th-weight { width: 22% !important; } 
-            #th-real { width: 15% !important; }   
-            #th-baker { width: 15% !important; }  
-            
-            /* 微調百分比符號 */
-            .pct-symbol { font-size: 10px; right: 0px; color: #ccc; } 
-            .pct-input-wrapper input { padding-right: 10px !important; }
+            #th-name { width: 30% !important; }
+            #th-weight { width: 20% !important; }
+            #th-real { width: 20% !important; }
+            #th-baker { width: 20% !important; }
+
+            .pct-symbol { font-size: 10px; right: 4px; }
         }
     </style>
 </head>
@@ -485,8 +454,9 @@ input[type=number] {
                     </td>
                     <td colspan="3"></td>
                 </tr>
-                <tr style="border-top: 2px solid #eee;">
-                    <td colspan="2" style="text-align:right;"><strong>總計</strong></td>
+               <tr style="border-top: 2px solid #eee;">
+                    <td id="tf-total-base-spacer"></td>
+                    <td style="text-align:right;"><strong>總計</strong></td>
                     <td id="sum-weight" style="font-weight:bold;">0</td>
                     <td id="sum-real-pct" style="font-weight:bold;">100%</td>
                     <td id="sum-baker-pct" style="font-weight:bold;">-</td>
@@ -623,6 +593,7 @@ input[type=number] {
         const showBaseCol = (currentMode === 'baker_pct' || currentMode === 'single_base');
         document.getElementById('th-base').style.display = showBaseCol ? '' : 'none';
         document.getElementById('tf-base').style.display = showBaseCol ? '' : 'none';
+        document.getElementById('tf-total-base-spacer').style.display = showBaseCol ? '' : 'none';
 
         ingredients.forEach((item, index) => {
             const tr = document.createElement('tr');
