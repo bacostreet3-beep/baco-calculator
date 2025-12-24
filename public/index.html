@@ -1041,6 +1041,40 @@
         }
     });
 </script>
+<script>
+(function() {
+    // 取得使用者瀏覽器資訊
+    var ua = navigator.userAgent.toLowerCase();
+    
+    // 判斷是否為 LINE 內建瀏覽器
+    if (ua.indexOf("line") > -1) {
+        // 1. 建立遮罩背景
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:999999; color:#fff; text-align:center; padding-top:15vh; font-family:sans-serif;';
+        
+        // 2. 加入提示文字與箭頭 (針對 iOS 和 Android 的箭頭位置做微調)
+        // 這裡做一個通用的右上角箭頭示意
+        overlay.innerHTML = `
+            <div style="text-align: right; padding-right: 30px; margin-top: -80px;">
+                <span style="font-size: 50px;">⤴</span>
+            </div>
+            <div style="margin-top: 20px;">
+                <h2 style="margin-bottom: 10px;">無法開啟連結？</h2>
+                <p style="font-size: 16px; line-height: 1.6;">
+                    LINE 瀏覽器不支援部分功能<br>
+                    請點選右上角選單 <span style="font-size:20px;">⋮</span> 或 <span style="font-size:20px;">↥</span><br>
+                    選擇 <b>「使用預設瀏覽器開啟」</b>
+                </p>
+            </div>
+        `;
 
+        // 3. 將遮罩加入網頁中
+        document.body.appendChild(overlay);
+
+        // 4. 禁止背景網頁滑動
+        document.body.style.overflow = 'hidden';
+    }
+})();
+</script>
 </body>
 </html>
