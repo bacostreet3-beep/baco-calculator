@@ -713,11 +713,11 @@ input[type=number] {
              baseItems = [ingredients[0]];
         }
 
-       function onBaseChange(index) {
+      function onBaseChange(index) {
         if (currentMode === 'baker_pct') {
             // 1. 複選模式：切換狀態
             ingredients[index].isBase = !ingredients[index].isBase;
-            
+
             // ★ 修正：當勾選為基準時，自動將該食材的烘焙百分比設為 100
             if (ingredients[index].isBase) {
                 ingredients[index].bakerPct = 100;
@@ -727,10 +727,40 @@ input[type=number] {
             ingredients.forEach(i => i.isBase = false);
             ingredients[index].isBase = true;
         }
-        
+
         buildTableStructure();
-        updateCalculations(null);
+        // ★ 修正：這裡多加了 'b' 參數
+        updateCalculations(null, 'b');
     }
+
+    // ★ 補救：補回被誤刪的函式
+    function onGlobalTotalChange() { updateCalculations(null, 'global'); }
+
+    function updateCalculations(sourceId, type) {
+        const totalGlobalInput = document.getElementById('total-weight-global');
+        let totalW = 0;
+        let totalBaseW = 0; // 所有基準食材的總重
+        
+        // 找出所有基準食材
+        let baseItems = ingredients.filter(i => i.isBase);
+        
+        // 防呆：若無任何基準，預設第一個 (非 Baker 模式下)
+        if (baseItems.length === 0 && ingredients.length > 0 && currentMode !== 'baker_pct') {
+             baseItems = [ingredients[0]];
+        }
+
+        if (currentMode === 'weight') {
+            totalW = ingredients.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+            
+            ingredients.forEach(i => {
+                i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0;
+                i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0;
+            });
+        }
+        else if (currentMode === 'real_pct') {
+            totalW = parseFloat(totalGlobalInput.value) || 0;
+            ingredients.forEach(i => {
                 i.weight = totalW * (i.realPct / 100);
             });
             totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
