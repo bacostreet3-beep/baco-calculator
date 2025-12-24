@@ -5,7 +5,7 @@ import fs from 'fs';
 // --- ★★★ 新增：頻率限制設定 (Rate Limiting) ★★★ ---
 const RATE_LIMIT_RULES = {
   windowMs: 60 * 1000, // 限制時間窗口：1 分鐘
-  ipLimit: 2,          // 單一 IP 限制：2 次
+  ipLimit: 5,          // 單一 IP 限制：5 次
   globalLimit: 30      // 全站總限制：30 次
 };
 
