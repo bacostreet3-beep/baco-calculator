@@ -349,30 +349,55 @@ input[type=number] {
         .sum-ok { color: var(--success-green) !important; font-weight: bold; }
 
         /* Media Queries */
+        /* 手機版與嵌入式優化 */
         @media (max-width: 600px) {
-            .container { padding: 10px; }
-            .card { padding: 15px; }
+            /* 1. 去除外圍留白，爭取最大空間 */
+            body {
+                padding: 0; 
+                background-color: #fff; /* 手機版背景改白，減少視覺干擾 */
+            }
+            .container {
+                padding: 0;
+                max-width: 100%;
+            }
+            .card {
+                padding: 10px 5px; /* 縮小內距 */
+                border-radius: 0;  /* 去除圓角 */
+                border: none;      /* 去除邊框 */
+                box-shadow: none;  /* 去除陰影 */
+                overflow-x: auto;  /* ★ 關鍵：允許卡片內部左右捲動 */
+            }
             
+            /* 2. 強制表格保持最小寬度，避免被擠扁 */
+            .recipe-table {
+                min-width: 450px; /* ★ 關鍵：設定一個舒適的最小寬度 */
+            }
+
             .mold-grid { grid-template-columns: 1fr; }
             .control-group { width: 45%; }
             
             .ai-controls-row { flex-direction: column; gap: 10px; }
             .ai-controls-row input[type="file"], .ai-controls-row .btn-analyze { width: 100%; }
 
-            /* 手機版表格優化 */
+            /* 手機版表格文字優化 */
             .recipe-table th, .recipe-table td {
-                padding: 8px 2px;
-                font-size: 13px;
+                padding: 8px 4px; /* 稍微縮小儲存格內距 */
+                font-size: 14px;
             }
             
-            /* 調整手機版欄位寬度 */
+            /* 修正總計行的顯示問題，避免文字重疊 */
+            .recipe-table tfoot td {
+                white-space: nowrap; /* 強制文字不換行 */
+            }
+            
+            /* 調整手機版欄位寬度佔比 (配合 min-width 使用後會更正常) */
             #th-base { width: 10% !important; }
-            #th-name { width: 30% !important; }
-            #th-weight { width: 20% !important; }
+            #th-name { width: 25% !important; }
+            #th-weight { width: 25% !important; }
             #th-real { width: 20% !important; }
             #th-baker { width: 20% !important; }
 
-            .pct-symbol { font-size: 10px; right: 4px; }
+            .pct-symbol { font-size: 10px; right: 2px; }
         }
     </style>
 </head>
