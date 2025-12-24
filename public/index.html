@@ -126,16 +126,16 @@
             transition: border-color 0.3s;
         }
         /* 隱藏 Chrome, Safari, Edge 的小箭頭 */
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
 
-/* 隱藏 Firefox 的小箭頭 */
-input[type=number] {
-    -moz-appearance: textfield;
-}
+        /* 隱藏 Firefox 的小箭頭 */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
 
         input[type="number"]:focus, input[type="text"]:focus {
             outline: none;
@@ -688,35 +688,6 @@ input[type=number] {
         if (currentMode === 'baker_pct') {
             // 1. 複選模式：切換狀態
             ingredients[index].isBase = !ingredients[index].isBase;
-        } else {
-            // 單選模式
-            ingredients.forEach(i => i.isBase = false);
-            ingredients[index].isBase = true;
-        }
-        
-        buildTableStructure();
-        updateCalculations(null);
-    }
-
-    function onGlobalTotalChange() { updateCalculations(null, 'global'); }
-
-    function updateCalculations(sourceId, type) {
-        const totalGlobalInput = document.getElementById('total-weight-global');
-        let totalW = 0;
-        let totalBaseW = 0; // 所有基準食材的總重
-        
-        // 找出所有基準食材
-        let baseItems = ingredients.filter(i => i.isBase);
-        
-        // 防呆：若無任何基準，預設第一個 (非 Baker 模式下)
-        if (baseItems.length === 0 && ingredients.length > 0 && currentMode !== 'baker_pct') {
-             baseItems = [ingredients[0]];
-        }
-
-      function onBaseChange(index) {
-        if (currentMode === 'baker_pct') {
-            // 1. 複選模式：切換狀態
-            ingredients[index].isBase = !ingredients[index].isBase;
 
             // ★ 修正：當勾選為基準時，自動將該食材的烘焙百分比設為 100
             if (ingredients[index].isBase) {
@@ -729,11 +700,10 @@ input[type=number] {
         }
 
         buildTableStructure();
-        // ★ 修正：這裡多加了 'b' 參數
+        // ★ 修正：這裡多加了 'b' 參數，確保數值重算
         updateCalculations(null, 'b');
     }
 
-    // ★ 補救：補回被誤刪的函式
     function onGlobalTotalChange() { updateCalculations(null, 'global'); }
 
     function updateCalculations(sourceId, type) {
@@ -769,29 +739,13 @@ input[type=number] {
             });
         }
         else if (currentMode === 'baker_pct') {
-            // 1. 修改：Baker % 邏輯，基準不再強制 100%，而是以總烘焙百分比計算
-            // 公式： 總重 = 基準重 + 其他重
-            // Weight = BaseWeight * (Baker% / 100)  <-- 錯誤，這是單一基準
-            
-            // 正確邏輯：
-            // 假設 總烘焙% (Sum of all Baker%) 對應 總重量 (TotalWeight)
-            // 則 Factor = TotalWeight / (SumBakerPct / 100) 這個 Factor 其實就是 TotalBaseWeight
-            // 但前提是基準食材的 Baker% 加總為 100% (使用者需自行輸入)
-            
-            if (baseItems.length === 0) {
-                 // 沒有基準，無法計算
-                 return;
-            }
+            if (baseItems.length === 0) return;
 
             if (type === 'global' || type === 'b') {
                 totalW = parseFloat(totalGlobalInput.value) || 0;
                 
                 // 計算所有食材的 Baker% 總和
                 let sumBakerAll = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
-                
-                // 反推 100% (即基準總重) 是多少
-                // TotalWeight = TotalBaseWeight * (SumBakerAll / 100)
-                // => TotalBaseWeight = TotalWeight / (SumBakerAll / 100)
                 
                 if (sumBakerAll > 0) {
                     totalBaseW = totalW / (sumBakerAll / 100);
@@ -802,13 +756,9 @@ input[type=number] {
                     ingredients.forEach(i => i.weight = 0);
                 }
             } 
-            else if (type === 'w') {
-                // 如果是在 Baker 模式下改重量 (理論上此模式輸入框唯讀，但防呆)
-                // 暫不處理，因為 UI 鎖住了
-            }
-
+            
             // 更新 Real %
-            totalW = ingredients.reduce((s, i) => s + i.weight, 0); // 重新加總避免浮點誤差
+            totalW = ingredients.reduce((s, i) => s + i.weight, 0); 
             ingredients.forEach(i => { i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; });
         }
         else if (currentMode === 'single_base') {
