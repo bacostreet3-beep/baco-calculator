@@ -713,18 +713,24 @@ input[type=number] {
              baseItems = [ingredients[0]];
         }
 
-        if (currentMode === 'weight') {
-            totalW = ingredients.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
-            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+       function onBaseChange(index) {
+        if (currentMode === 'baker_pct') {
+            // 1. 複選模式：切換狀態
+            ingredients[index].isBase = !ingredients[index].isBase;
             
-            ingredients.forEach(i => {
-                i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0;
-                i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0;
-            });
+            // ★ 修正：當勾選為基準時，自動將該食材的烘焙百分比設為 100
+            if (ingredients[index].isBase) {
+                ingredients[index].bakerPct = 100;
+            }
+        } else {
+            // 單選模式
+            ingredients.forEach(i => i.isBase = false);
+            ingredients[index].isBase = true;
         }
-        else if (currentMode === 'real_pct') {
-            totalW = parseFloat(totalGlobalInput.value) || 0;
-            ingredients.forEach(i => {
+        
+        buildTableStructure();
+        updateCalculations(null);
+    }
                 i.weight = totalW * (i.realPct / 100);
             });
             totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
