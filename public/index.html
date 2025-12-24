@@ -301,8 +301,7 @@
              left: 2px;
         }
 
-        /* RWD 手機版優化區域 */
-        @media (max-width: 600px) {
+      @media (max-width: 600px) {
             .mold-grid { grid-template-columns: 1fr; }
             .control-group { width: 45%; } /* 手機版按鈕寬度 */
             
@@ -316,14 +315,22 @@
                 width: 100%; /* 強制填滿 */
             }
 
-            /* 2. 修正：手機版表格顯示優化 */
+            /* 2. 修正：手機版表格顯示優化 - 解決數字黏在一起 */
             .recipe-table th, .recipe-table td {
-                padding: 8px 2px; /* 極大減少內距 */
-                font-size: 14px;
+                padding: 8px 1px; /* 儲存格內距縮到最小 */
+                font-size: 13px;  /* 字體微調適應小螢幕 */
             }
             .recipe-table input {
-                padding: 6px; /* 減少輸入框內距 */
-                font-size: 14px;
+                padding: 6px 0;     /* 移除輸入框內部左右留白，增加數字顯示空間 */
+                font-size: 13px;
+                text-align: center; /* 關鍵：數字居中，確保兩欄數字間有最大距離 */
+                width: 92%;         /* 關鍵：輸入框縮小一點點，強迫產生白色間隙 */
+                margin: 0 auto;     /* 輸入框置中 */
+                display: block;
+            }
+            /* 隱藏 Base 欄位選擇框的容器 padding，爭取空間 */
+            #th-base, #tf-base { width: 20px; }
+        }
             }
             /* 隱藏 Base 欄位選擇框的容器 padding，爭取空間 */
             #th-base, #tf-base { width: 20px; }
