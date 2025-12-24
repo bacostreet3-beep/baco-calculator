@@ -417,7 +417,7 @@
 
         <div style="text-align: center; margin-bottom: 15px;">
             <label style="cursor: pointer; color: var(--text-light); font-size: 14px;">
-                <input type="checkbox" id="decimal-toggle" onchange="toggleDecimal()"> 顯示小數點後一位
+                <input type="checkbox" id="decimal-toggle" onchange="toggleDecimal()" checked> 顯示小數點後一位
             </label>
         </div>
 
@@ -504,7 +504,7 @@
     ];
     let nextId = 4;
     let currentMode = 'weight'; 
-    let isRenderDecimal = false;
+    let isRenderDecimal = true;
 
     // --- 使用說明文字 ---
     const helpTexts = {
