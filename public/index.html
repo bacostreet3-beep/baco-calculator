@@ -6,17 +6,16 @@
     <title>貝克街-烘焙計算機</title>
     <style>
         :root {
-            /* 1. 視覺改為白底黑字風格 */
-            --bg-color: #f8f9fa;      /* 柔和的淺灰白背景 */
-            --card-bg: #ffffff;       /* 純白卡片 */
-            --text-main: #333333;     /* 主要深黑文字 */
-            --text-gold: #b8860b;     /* 暗金色 (在白底上更易讀) */
-            --text-light: #666666;    /* 次要灰字 */
-            --input-bg: #ffffff;      /* 輸入框白底 */
-            --input-border: #cccccc;  /* 輸入框邊框 */
-            --border-gold: #daa520;   /* 金色邊框裝飾 */
-            --btn-bg: #f0f0f0;        /* 按鈕淺灰底 */
-            --btn-hover: #e0e0e0;     /* 按鈕懸停 */
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-gold: #b8860b;
+            --text-light: #666666;
+            --input-bg: #ffffff;
+            --input-border: #cccccc;
+            --border-gold: #daa520;
+            --btn-bg: #f0f0f0;
+            --btn-hover: #e0e0e0;
             --error-red: #d32f2f;
             --success-green: #2e7d32;
         }
@@ -42,35 +41,32 @@
             margin: 0 auto;
         }
 
-        /* 卡片樣式优化 (白底陰影) */
         .card {
             background-color: var(--card-bg);
             border: 1px solid #eaeaea;
             border-radius: 12px;
             padding: 25px;
             margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* 柔和陰影 */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         }
 
-        /* 控制項區域佈局調整 */
+        /* Controls */
         .controls {
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
             margin-bottom: 20px;
             justify-content: center;
-            align-items: flex-start; /* 讓按鈕與說明文字垂直對齊 */
+            align-items: flex-start;
         }
 
-        /* 包裹按鈕與說明的容器 */
         .control-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 140px; /* 固定寬度讓排版整齊 */
+            width: 140px;
         }
 
-        /* 按鈕樣式 (白底風格) */
         button, select, input[type="file"]::file-selector-button {
             background-color: var(--btn-bg);
             color: var(--text-main);
@@ -80,7 +76,7 @@
             transition: all 0.3s;
             font-size: 14px;
             border-radius: 6px;
-            width: 100%; /* 填滿容器 */
+            width: 100%;
         }
 
         button:hover {
@@ -88,7 +84,6 @@
             border-color: #999;
         }
 
-        /* 選中狀態 - 金色 */
         button.active {
             background-color: var(--text-gold);
             color: white;
@@ -96,44 +91,10 @@
             font-weight: bold;
         }
 
-        /* 使用說明小按鈕 */
-        /* 使用說明小按鈕 - 手機版最終修正 */
         .help-btn {
             font-size: 12px;
             color: var(--text-light);
-            text-decoration: none; /* 去除底線 */
-            cursor: pointer;
-            background: none;
-            border: none;
-            
-            /* 關鍵：增加點擊範圍，但限制在文字周圍 */
-            display: inline-block; 
-            padding: 8px 15px;     /* 上下左右都增加一點隱形點擊區 */
-            margin: 0;             /* 歸零以免跑版 */
-            
-            position: relative;    /* 配合 z-index 使用 */
-            z-index: 99;           /* 強制浮在最上層，確保 JavaScript 收得到點擊 */
-            
-            /* 手機版點擊優化 */
-            -webkit-tap-highlight-color: transparent; /* 去除預設的灰色背景塊 */
-            user-select: none;     /* 防止雙擊時選取到文字 */
-        }
-
-        /* 手機按下去的瞬間，文字會稍微縮小變淡，提供回饋感 */
-        .help-btn:active {
-            opacity: 0.6;
-            transform: scale(0.95);
-        }
-
-        /* 電腦版滑鼠懸停才變色 (避免手機版第一下點擊被吃掉) */
-        @media (hover: hover) {
-            .help-btn:hover {
-                color: var(--text-gold);
-            }
-        } {
-            font-size: 12px;
-            color: var(--text-light);
-            text-decoration: none; /* 去除底線，讓箭頭更乾淨 */
+            text-decoration: none;
             cursor: pointer;
             margin-top: 5px;
             background: none;
@@ -141,15 +102,8 @@
             padding: 0;
             width: auto;
         }
-        .help-btn:hover {
-            color: var(--text-gold);
-        }
-
-        /* 模式A下方沒有說明，用這個佔位保持對齊 (可選) */
-        .help-spacer {
-            height: 18px; 
-            margin-top: 5px;
-        }
+        .help-btn:hover { color: var(--text-gold); }
+        .help-spacer { height: 18px; margin-top: 5px; }
 
         select {
             background-color: var(--input-bg);
@@ -159,7 +113,7 @@
             border-radius: 6px;
         }
 
-        /* 輸入框樣式優化 */
+        /* Inputs */
         input[type="number"], input[type="text"] {
             background-color: var(--input-bg);
             border: 1px solid var(--input-border);
@@ -171,20 +125,22 @@
             border-radius: 6px;
             transition: border-color 0.3s;
         }
+        /* 隱藏 Chrome, Safari, Edge 的小箭頭 */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
 
-        input[type=number]::-webkit-outer-spin-button,
-        input[type=number]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        input[type=number] {
-            -moz-appearance: textfield;
-        }
+/* 隱藏 Firefox 的小箭頭 */
+input[type=number] {
+    -moz-appearance: textfield;
+}
 
         input[type="number"]:focus, input[type="text"]:focus {
             outline: none;
             border-color: var(--text-gold);
-            background-color: #fffdf5; /* 聚焦時微黃 */
+            background-color: #fffdf5;
         }
 
         input[readonly] {
@@ -194,11 +150,12 @@
             border-color: #eee;
         }
 
-        /* 表格樣式 */
+        /* Table */
         .recipe-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
+            table-layout: fixed; /* 固定佈局，避免欄位亂跳 */
         }
 
         .recipe-table th, .recipe-table td {
@@ -206,18 +163,32 @@
             text-align: center;
             border-bottom: 1px solid #eee;
             vertical-align: middle;
-        }
-        
-        /* 3. 修正：強制單元格內容不換行，解決 % 跑到底下的問題 */
-        .recipe-table td {
-            white-space: nowrap; 
+            white-space: nowrap;
         }
 
         .recipe-table th {
             color: var(--text-gold);
             font-weight: 600;
             font-size: 0.95em;
-            white-space: nowrap; /* 表頭也不要換行 */
+        }
+
+        /* 3. 手機版百分比樣式優化 */
+        .pct-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .pct-input-wrapper input {
+            padding-right: 20px !important; /* 留空間給 % 符號 */
+            text-align: right; /* 數值靠右 */
+        }
+        .pct-symbol {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 12px;
+            pointer-events: none;
         }
 
         .delete-btn {
@@ -228,15 +199,12 @@
             padding: 0 5px;
             width: auto;
         }
-        .delete-btn:hover {
-            background: none;
-            opacity: 0.7;
-        }
+        .delete-btn:hover { background: none; opacity: 0.7; }
 
-        /* AI 區塊 (2. 重新設計) */
+        /* AI Section */
         .ai-section {
-            border: 2px dashed var(--border-gold); /* 虛線框保留給整個區域，更有拖曳感 */
-            background-color: #fffaf0; /* 極淡的金色背景 */
+            border: 2px dashed var(--border-gold);
+            background-color: #fffaf0;
             padding: 25px;
             margin-bottom: 20px;
             position: relative;
@@ -247,12 +215,11 @@
             text-align: center;
             margin-bottom: 15px;
         }
-        
         #ai-text-input {
-            background: #fafafa; 
-            color: var(--text-main); 
-            border: 1px solid #ddd; 
-            padding: 15px; 
+            background: #fafafa;
+            color: var(--text-main);
+            border: 1px solid #ddd;
+            padding: 15px;
             border-radius: 8px;
             width: 100%;
             box-sizing: border-box;
@@ -260,12 +227,10 @@
             transition: all 0.3s;
             font-size: 15px;
         }
-        
         #ai-text-input.drag-over {
             border: 2px dashed var(--text-gold);
             background: #fffdf0;
         }
-
         .ai-controls-row {
             display: flex;
             justify-content: space-between;
@@ -274,20 +239,14 @@
             gap: 15px;
             flex-wrap: wrap;
         }
-
-        /* AI 辨識按鈕特別顯眼 */
         .btn-analyze {
-            background-color: var(--text-main); /* 黑底 */
-            color: white; /* 白字 */
+            background-color: var(--text-main);
+            color: white;
             font-weight: bold;
             border: none;
-            flex-grow: 1; /* 讓按鈕寬一點 */
+            flex-grow: 1;
         }
-        .btn-analyze:hover {
-            background-color: var(--text-gold);
-        }
-
-        /* 2. AI 狀態文字 (重新設計：去框、改變字體與位置) */
+        .btn-analyze:hover { background-color: var(--text-gold); }
         .ai-status-bar {
             margin-top: 15px;
             text-align: center;
@@ -295,83 +254,72 @@
             font-size: 16px;
             font-weight: bold;
             letter-spacing: 1px;
-            border: none; /* 去除邊框 */
             background: none;
             padding: 5px;
-            min-height: 24px; /* 保留一點高度避免完全塌陷，但預設隱藏內容 */
+            min-height: 24px;
         }
 
-        /* 模具換算區 */
+        /* Mold Section */
         .mold-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 25px;
             margin-top: 20px;
         }
-        
-        /* 4. 模具輸入框的單位顯示樣式 */
-        .input-with-unit-wrapper {
-            position: relative;
+
+        /* 4. 模具輸入框優化 (Label + Input + Unit) */
+        .mold-input-row {
             display: flex;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 0 10px;
+            position: relative;
         }
-        .input-with-unit-wrapper input {
-            padding-right: 45px; /* 留位置給單位 */
-            margin-bottom: 0 !important; /* 覆蓋 inline style */
+        .mold-input-row:focus-within {
+            border-color: var(--text-gold);
+            background-color: #fffdf5;
         }
-        .unit-label {
-            position: absolute;
-            right: 12px;
-            color: #999;
+        .mold-label {
+            font-size: 14px;
+            color: var(--text-light);
+            white-space: nowrap;
+            margin-right: 5px;
+            min-width: 35px; /* 保持標籤對齊 */
+        }
+        .mold-input-row input {
+            border: none;
+            background: transparent;
+            text-align: right; /* 數值靠右 */
+            padding: 10px 5px;
+            flex-grow: 1;
+        }
+        .mold-input-row input:focus {
+            outline: none;
+            background: transparent;
+        }
+        .mold-unit {
             font-size: 13px;
-            pointer-events: none; /* 讓點擊穿透到 input */
+            color: #999;
+            margin-left: 5px;
         }
-        .input-with-unit-wrapper small {
-             /* 高度預設說明的微調 */
-             position: absolute;
-             bottom: -18px;
-             left: 2px;
+        .mold-hint {
+            position: absolute;
+            bottom: -16px;
+            right: 0;
+            font-size: 11px;
+            color: #999;
         }
 
-      @media (max-width: 600px) {
-            .mold-grid { grid-template-columns: 1fr; }
-            .control-group { width: 45%; } /* 手機版按鈕寬度 */
-            
-            /* 1. 修正：手機版 AI 按鈕與檔案選擇對齊 */
-            .ai-controls-row {
-                flex-direction: column; /* 改為垂直排列 */
-                gap: 10px;
-            }
-            .ai-controls-row input[type="file"], 
-            .ai-controls-row .btn-analyze {
-                width: 100%; /* 強制填滿 */
-            }
-
-            /* 2. 修正：手機版表格顯示優化 - 解決數字黏在一起 */
-            .recipe-table th, .recipe-table td {
-                padding: 8px 1px; /* 儲存格內距縮到最小 */
-                font-size: 13px;  /* 字體微調適應小螢幕 */
-            }
-            .recipe-table input {
-                padding: 6px 0;     /* 移除輸入框內部左右留白，增加數字顯示空間 */
-                font-size: 13px;
-                text-align: center; /* 關鍵：數字居中，確保兩欄數字間有最大距離 */
-                width: 92%;         /* 關鍵：輸入框縮小一點點，強迫產生白色間隙 */
-                margin: 0 auto;     /* 輸入框置中 */
-                display: block;
-            }
-           /* 隱藏 Base 欄位選擇框的容器 padding，爭取空間 */
-            #th-base, #tf-base { width: 20px; }
-        }
-        }
-        
+        /* 5. 增加間距 */
         .result-highlight {
             color: var(--text-gold);
             font-size: 1.3em;
             font-weight: bold;
             text-align: center;
-            margin: 25px 0;
+            margin: 35px 0 25px 0; /* 增加上方距離 */
             padding: 10px;
             background-color: #fffdf5;
             border-radius: 8px;
@@ -400,6 +348,32 @@
         .sum-error { color: var(--error-red) !important; font-weight: bold; }
         .sum-ok { color: var(--success-green) !important; font-weight: bold; }
 
+        /* Media Queries */
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .card { padding: 15px; }
+            
+            .mold-grid { grid-template-columns: 1fr; }
+            .control-group { width: 45%; }
+            
+            .ai-controls-row { flex-direction: column; gap: 10px; }
+            .ai-controls-row input[type="file"], .ai-controls-row .btn-analyze { width: 100%; }
+
+            /* 手機版表格優化 */
+            .recipe-table th, .recipe-table td {
+                padding: 8px 2px;
+                font-size: 13px;
+            }
+            
+            /* 調整手機版欄位寬度 */
+            #th-base { width: 10% !important; }
+            #th-name { width: 30% !important; }
+            #th-weight { width: 20% !important; }
+            #th-real { width: 20% !important; }
+            #th-baker { width: 20% !important; }
+
+            .pct-symbol { font-size: 10px; right: 4px; }
+        }
     </style>
 </head>
 <body>
@@ -427,16 +401,17 @@
         <div class="controls">
             <div class="control-group">
                 <button class="mode-btn active" onclick="setMode('weight')">A. 輸入重量</button>
-                <div class="help-spacer"></div> </div>
+                <div class="help-spacer"></div> 
+            </div>
 
             <div class="control-group">
                 <button class="mode-btn" onclick="setMode('real_pct')">B. 輸入實際 %</button>
-               <button type="button" class="help-btn" onclick="showHelp('real_pct')">➤ 使用說明</button>
+                <button type="button" class="help-btn" onclick="showHelp('real_pct')">➤ 使用說明</button>
             </div>
 
             <div class="control-group">
                 <button class="mode-btn" onclick="setMode('baker_pct')">C. 輸入烘焙 %</button>
-               <button type="button" class="help-btn" onclick="showHelp('baker_pct')">➤ 使用說明</button>
+                <button type="button" class="help-btn" onclick="showHelp('baker_pct')">➤ 使用說明</button>
             </div>
 
             <div class="control-group">
@@ -452,26 +427,35 @@
         </div>
 
         <div id="total-weight-input-group">
-            <label>配方總重量 (g): <input type="number" id="total-weight-global" value="1000" style="width: 120px; display:inline-block; font-weight:bold;" oninput="onGlobalTotalChange()"></label>
+            <label>配方總重量 (g): <input type="number" id="total-weight-global" value="1000" style="width: 120px; display:inline-block; font-weight:bold; text-align: center;" oninput="onGlobalTotalChange()"></label>
         </div>
 
         <table class="recipe-table">
             <thead>
                 <tr>
-                    <th id="th-base" style="width: 5%">基準</th>
-                    <th style="width: 35%">食材</th>
-                    <th style="width: 26%">重量 (g)</th>
-                    <th style="width: 15%">實際 %</th>
-                    <th style="width: 15%">烘焙 %</th>
+                    <th id="th-base" style="width: 8%">基準</th>
+                    <th id="th-name" style="width: 32%">食材</th>
+                    <th id="th-weight" style="width: 20%">重量(g)</th>
+                    <th id="th-real" style="width: 18%">實際%</th>
+                    <th id="th-baker" style="width: 18%">烘焙%</th>
                     <th style="width: 4%"></th>
                 </tr>
             </thead>
             <tbody id="recipe-body">
-                </tbody>
+            </tbody>
             <tfoot>
                 <tr>
                     <td id="tf-base"></td>
-                    <td><strong>總計</strong></td>
+                    <td style="text-align:right; font-size:13px; color:var(--text-gold);">
+                        <span id="base-sum-label" style="display:none;">基準總重:</span>
+                    </td>
+                    <td style="font-size:13px; color:var(--text-gold); font-weight:bold;">
+                        <span id="base-sum-val" style="display:none;">0</span>
+                    </td>
+                    <td colspan="3"></td>
+                </tr>
+                <tr style="border-top: 2px solid #eee;">
+                    <td colspan="2" style="text-align:right;"><strong>總計</strong></td>
                     <td id="sum-weight" style="font-weight:bold;">0</td>
                     <td id="sum-real-pct" style="font-weight:bold;">100%</td>
                     <td id="sum-baker-pct" style="font-weight:bold;">-</td>
@@ -536,10 +520,10 @@
     let currentMode = 'weight'; 
     let isRenderDecimal = true;
 
-    // --- 使用說明文字 ---
+    // --- 使用說明文字 (2. 更新說明) ---
     const helpTexts = {
         'real_pct': '【輸入實際 % 模式說明】\n\n1. 設定「配方總重量」。\n2. 輸入每個食材佔總重量的「實際百分比」(總和應為 100%)。\n\n系統會自動計算出每個食材的公克數。',
-        'baker_pct': '【輸入烘焙 % 模式說明】\n\n1. 請先勾選一個食材作為「基準」(通常是麵粉)。\n2. 設定該基準食材為 100%。\n3. 輸入其他食材相對於基準的百分比。\n\n系統會依照烘焙百分比計算出所有重量。',
+        'baker_pct': '【輸入烘焙 % 模式說明】\n\n1. 請勾選「基準食材」(可複選)。\n   例如：製作老麵麵包時，可同時勾選「中種麵粉」與「本種麵粉」。\n\n2. 這些被勾選的基準食材，其烘焙百分比加總應為 100%。\n   (例如：中種麵粉70% + 本種麵粉30% = 100%)\n\n3. 輸入其他食材相對於基準總量的百分比。',
         'single_base': '【修改單一食材重量說明】\n\n1. 勾選您想要修改的那個食材。\n2. 直接修改它的重量。\n\n系統會依照原本的比例，自動等比例調整其他所有食材的重量，確保配方風味不變。'
     };
 
@@ -555,7 +539,7 @@
         updateCalculations(null); 
         updateMoldInputs();
         initWakeLock();
-        initDragAndDrop(); // 啟動拖曳功能
+        initDragAndDrop();
     };
 
     function toggleDecimal() {
@@ -578,9 +562,13 @@
             }
         });
 
-        // 特別處理：如果進入烘焙百分比模式，清空所有預設基準，強制使用者重選
+        // 烘焙百分比模式下，若沒有任何基準，預設第一項為基準
         if (mode === 'baker_pct') {
-            ingredients.forEach(i => i.isBase = false);
+            const hasBase = ingredients.some(i => i.isBase);
+            if (!hasBase && ingredients.length > 0) {
+                ingredients[0].isBase = true;
+                ingredients[0].bakerPct = 100;
+            }
         }
 
         const globalInput = document.getElementById('total-weight-input-group');
@@ -605,9 +593,6 @@
         document.getElementById('th-base').style.display = showBaseCol ? '' : 'none';
         document.getElementById('tf-base').style.display = showBaseCol ? '' : 'none';
 
-        // 檢查是否有選中的基準
-        const hasBase = ingredients.some(i => i.isBase);
-
         ingredients.forEach((item, index) => {
             const tr = document.createElement('tr');
             
@@ -619,12 +604,7 @@
                 wDis = true; rDis = false; bDis = true;
             } else if (currentMode === 'baker_pct') {
                 wDis = true;
-                if (!hasBase) {
-                    bDis = true;
-                } else {
-                    if (item.isBase) bDis = true; 
-                    else bDis = false;
-                }
+                bDis = false; // 烘焙百分比模式下，所有烘焙%欄位都可輸入 (包含基準)
             } else if (currentMode === 'single_base') {
                 wDis = !item.isBase; 
                 rDis = true; 
@@ -632,14 +612,29 @@
             }
 
             let baseTdStyle = showBaseCol ? '' : 'display:none;';
-            let baseHtml = `<td style="${baseTdStyle}"><input type="radio" name="baseItem" ${item.isBase ? 'checked' : ''} onchange="onBaseChange(${index})" style="cursor:pointer; width: 18px; height: 18px;"></td>`;
+            
+            // 1. 修改：Checkbox 實現複選
+            // 在 single_base 模式下維持單選 (Radio 行為)，在 baker_pct 下為複選
+            let inputType = (currentMode === 'baker_pct') ? 'checkbox' : 'radio';
+            
+            let baseHtml = `<td style="${baseTdStyle}">
+                <input type="${inputType}" name="baseItem" ${item.isBase ? 'checked' : ''} onchange="onBaseChange(${index})" style="cursor:pointer; width: 18px; height: 18px;">
+            </td>`;
+
+            // 3. 修改：百分比輸入框使用 wrapper 包裹，符號縮小靠右
+            const pctInput = (id, val, readonly, handler) => `
+                <div class="pct-input-wrapper">
+                    <input type="number" id="${id}" step="any" value="${val}" ${readonly ? 'readonly' : ''} oninput="${handler}">
+                    <span class="pct-symbol">%</span>
+                </div>
+            `;
 
             tr.innerHTML = `
                 ${baseHtml}
                 <td><input type="text" id="name-${item.id}" value="${item.name}" oninput="onNameInput(${index}, this.value)"></td>
-                <td><input type="number" id="w-${item.id}" step="any" ${wDis ? 'readonly' : ''} oninput="onInput(${index}, 'w', this.value)"></td>
-                <td><input type="number" id="r-${item.id}" step="any" ${rDis ? 'readonly' : ''} oninput="onInput(${index}, 'r', this.value)">%</td>
-                <td><input type="number" id="b-${item.id}" step="any" ${bDis ? 'readonly' : ''} oninput="onInput(${index}, 'b', this.value)">%</td>
+                <td><input type="number" id="w-${item.id}" step="any" ${wDis ? 'readonly' : ''} oninput="onInput(${index}, 'w', this.value)" style="text-align:right;"></td>
+                <td>${pctInput(`r-${item.id}`, '', rDis, `onInput(${index}, 'r', this.value)`)}</td>
+                <td>${pctInput(`b-${item.id}`, '', bDis, `onInput(${index}, 'b', this.value)`)}</td>
                 <td><button class="delete-btn" onclick="deleteRow(${index})">×</button></td>
             `;
             tbody.appendChild(tr);
@@ -663,11 +658,15 @@
     function onNameInput(index, val) { ingredients[index].name = val; }
 
     function onBaseChange(index) {
-        ingredients.forEach(i => i.isBase = false);
-        ingredients[index].isBase = true;
         if (currentMode === 'baker_pct') {
-            ingredients[index].bakerPct = 100;
+            // 1. 複選模式：切換狀態
+            ingredients[index].isBase = !ingredients[index].isBase;
+        } else {
+            // 單選模式
+            ingredients.forEach(i => i.isBase = false);
+            ingredients[index].isBase = true;
         }
+        
         buildTableStructure();
         updateCalculations(null);
     }
@@ -677,19 +676,23 @@
     function updateCalculations(sourceId, type) {
         const totalGlobalInput = document.getElementById('total-weight-global');
         let totalW = 0;
-        let flourW = 0;
+        let totalBaseW = 0; // 所有基準食材的總重
         
-        let baseItem = ingredients.find(i => i.isBase);
-        if (!baseItem && currentMode !== 'baker_pct') {
-            baseItem = ingredients[0];
+        // 找出所有基準食材
+        let baseItems = ingredients.filter(i => i.isBase);
+        
+        // 防呆：若無任何基準，預設第一個 (非 Baker 模式下)
+        if (baseItems.length === 0 && ingredients.length > 0 && currentMode !== 'baker_pct') {
+             baseItems = [ingredients[0]];
         }
 
         if (currentMode === 'weight') {
             totalW = ingredients.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
-            flourW = baseItem ? (Number(baseItem.weight)||0) : 0;
+            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+            
             ingredients.forEach(i => {
                 i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0;
-                i.bakerPct = flourW > 0 ? (i.weight / flourW * 100) : 0;
+                i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0;
             });
         }
         else if (currentMode === 'real_pct') {
@@ -697,44 +700,57 @@
             ingredients.forEach(i => {
                 i.weight = totalW * (i.realPct / 100);
             });
-            flourW = baseItem ? baseItem.weight : 0;
+            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
             ingredients.forEach(i => {
-                i.bakerPct = flourW > 0 ? (i.weight / flourW * 100) : 0;
+                i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0;
             });
         }
         else if (currentMode === 'baker_pct') {
-            if (!baseItem) {
-                 updateViewValues(sourceId, type);
-                 updateFooter(0, 0);
+            // 1. 修改：Baker % 邏輯，基準不再強制 100%，而是以總烘焙百分比計算
+            // 公式： 總重 = 基準重 + 其他重
+            // Weight = BaseWeight * (Baker% / 100)  <-- 錯誤，這是單一基準
+            
+            // 正確邏輯：
+            // 假設 總烘焙% (Sum of all Baker%) 對應 總重量 (TotalWeight)
+            // 則 Factor = TotalWeight / (SumBakerPct / 100) 這個 Factor 其實就是 TotalBaseWeight
+            // 但前提是基準食材的 Baker% 加總為 100% (使用者需自行輸入)
+            
+            if (baseItems.length === 0) {
+                 // 沒有基準，無法計算
                  return;
             }
-            baseItem.bakerPct = 100; 
-            
-            if (type === 'global') {
+
+            if (type === 'global' || type === 'b') {
                 totalW = parseFloat(totalGlobalInput.value) || 0;
-                let sumBaker = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
-                flourW = sumBaker > 0 ? (totalW / (sumBaker/100)) : 0;
-                ingredients.forEach(i => { i.weight = flourW * (i.bakerPct / 100); });
-            } 
-            else if (type === 'w' && baseItem && sourceId === baseItem.id) {
-                flourW = Number(baseItem.weight) || 0;
-                ingredients.forEach(i => { if (i !== baseItem) i.weight = flourW * (i.bakerPct / 100); });
-                totalW = ingredients.reduce((s, i) => s + i.weight, 0);
-                totalGlobalInput.value = formatNum(totalW);
-            }
-            else {
-                totalW = parseFloat(totalGlobalInput.value) || 0;
-                let sumBaker = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
-                if (sumBaker > 0) {
-                    flourW = totalW / (sumBaker / 100);
-                    ingredients.forEach(i => { i.weight = flourW * (i.bakerPct / 100); });
+                
+                // 計算所有食材的 Baker% 總和
+                let sumBakerAll = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
+                
+                // 反推 100% (即基準總重) 是多少
+                // TotalWeight = TotalBaseWeight * (SumBakerAll / 100)
+                // => TotalBaseWeight = TotalWeight / (SumBakerAll / 100)
+                
+                if (sumBakerAll > 0) {
+                    totalBaseW = totalW / (sumBakerAll / 100);
+                    ingredients.forEach(i => {
+                        i.weight = totalBaseW * (i.bakerPct / 100);
+                    });
                 } else {
                     ingredients.forEach(i => i.weight = 0);
                 }
+            } 
+            else if (type === 'w') {
+                // 如果是在 Baker 模式下改重量 (理論上此模式輸入框唯讀，但防呆)
+                // 暫不處理，因為 UI 鎖住了
             }
+
+            // 更新 Real %
+            totalW = ingredients.reduce((s, i) => s + i.weight, 0); // 重新加總避免浮點誤差
             ingredients.forEach(i => { i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; });
         }
         else if (currentMode === 'single_base') {
+            // 此模式下 baseItems 只有一個
+            let baseItem = baseItems[0];
             if (baseItem && type === 'w' && sourceId === baseItem.id) {
                 if (baseItem.realPct > 0) {
                     totalW = baseItem.weight / (baseItem.realPct / 100);
@@ -747,33 +763,23 @@
             } else {
                 totalW = ingredients.reduce((s, i) => s + i.weight, 0);
             }
-            flourW = baseItem ? baseItem.weight : 0;
+            
+            totalBaseW = baseItem ? baseItem.weight : 0;
             ingredients.forEach(i => { 
-                i.bakerPct = flourW > 0 ? (i.weight / flourW * 100) : 0; 
+                i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; 
             });
         }
 
         updateViewValues(sourceId, type);
-        updateFooter(totalW, flourW);
+        updateFooter(totalW, totalBaseW);
     }
 
     function updateViewValues(skipId = null, skipType = null) {
-        const hasBase = ingredients.some(i => i.isBase);
         ingredients.forEach(item => {
             const shouldSkip = (t) => (item.id === skipId && t === skipType);
             if (!shouldSkip('w')) { const el = document.getElementById(`w-${item.id}`); if (el) el.value = formatNum(item.weight); }
             if (!shouldSkip('r')) { const el = document.getElementById(`r-${item.id}`); if (el) el.value = formatNum(item.realPct); }
-            
-            if (!shouldSkip('b')) { 
-                const el = document.getElementById(`b-${item.id}`); 
-                if (el) {
-                    if (currentMode === 'baker_pct' && !hasBase) {
-                        el.value = ''; 
-                    } else {
-                        el.value = formatNum(item.bakerPct);
-                    }
-                }
-            }
+            if (!shouldSkip('b')) { const el = document.getElementById(`b-${item.id}`); if (el) el.value = formatNum(item.bakerPct); }
         });
     }
 
@@ -783,15 +789,14 @@
         return Math.round(num * 100) / 100; 
     }
 
-    function updateFooter(total, flour) {
+    function updateFooter(total, totalBase) {
         const sumW = ingredients.reduce((s,i)=>s+(Number(i.weight)||0),0);
         const sumReal = ingredients.reduce((s,i)=>s+(Number(i.realPct)||0),0);
         
         let sumBaker = 0;
-        if (currentMode === 'baker_pct' && !ingredients.some(i => i.isBase)) {
-            sumBaker = 0; 
-        } else {
-            sumBaker = (flour > 0) ? (sumW / flour * 100) : 0;
+        // 計算 Baker % 總和
+        if (totalBase > 0) {
+             sumBaker = (sumW / totalBase) * 100;
         }
 
         document.getElementById('sum-weight').innerText = formatNum(sumW);
@@ -806,10 +811,23 @@
         }
         
         const sumBakerEl = document.getElementById('sum-baker-pct');
-        if (currentMode === 'baker_pct' && !ingredients.some(i => i.isBase)) {
+        if (totalBase <= 0) {
             sumBakerEl.innerText = '-';
         } else {
             sumBakerEl.innerText = formatNum(sumBaker) + '%';
+        }
+
+        // 1. 新增：顯示基準總重
+        const baseSumLabel = document.getElementById('base-sum-label');
+        const baseSumVal = document.getElementById('base-sum-val');
+        
+        if (currentMode === 'baker_pct') {
+            baseSumLabel.style.display = 'inline';
+            baseSumVal.style.display = 'inline';
+            baseSumVal.innerText = formatNum(totalBase) + 'g';
+        } else {
+            baseSumLabel.style.display = 'none';
+            baseSumVal.style.display = 'none';
         }
     }
 
@@ -837,19 +855,19 @@
         const srcDiv = document.getElementById('src-inputs');
         const dstDiv = document.getElementById('dst-inputs');
         
-        // 4. 修正：動態生成帶單位的輸入框結構
-        const makeInput = (id, placeholder, unit, defaultVal = '') => `
-            <div class="input-with-unit-wrapper">
-                <input type="number" id="${id}" placeholder="${placeholder}" value="${defaultVal}" oninput="updateFactor()">
-                <span class="unit-label">${unit}</span>
-                ${id.includes('-h') ? '<small style="color:#999; display:block;">預設5cm</small>' : ''}
+        // 4. 修改：將 Placeholder 改為固定標籤的結構，且靠右對齊
+        const makeInput = (id, label, unit, defaultVal = '') => `
+            <div class="mold-input-row">
+                <span class="mold-label">${label}</span>
+                <input type="number" id="${id}" value="${defaultVal}" oninput="updateFactor()">
+                <span class="mold-unit">${unit}</span>
+                ${id.includes('-h') ? '<span class="mold-hint">預設5cm</span>' : ''}
             </div>
         `;
 
         if (type === 'round') { 
-            // 圓形單位：吋
             const unit = '吋';
-            const hUnit = 'cm'; // 高度通常還是用cm
+            const hUnit = 'cm';
             
             srcDiv.innerHTML = 
                 makeInput('src-d', '直徑', unit) + 
@@ -860,7 +878,6 @@
                 makeInput('dst-h', '高度', hUnit, '5');
 
         } else { 
-            // 方形單位：cm
             const unit = 'cm';
             
             srcDiv.innerHTML = 
@@ -972,6 +989,7 @@
             if (text) fd.append('text', text);
             if (file) fd.append('image', file);
 
+            // 這裡需替換為您真實的後端 API
             const res = await fetch('/api/analyze', {
                 method: 'POST',
                 body: fd
@@ -990,23 +1008,23 @@
                 }
 
                 if (rawData.length > 0) {
-                      ingredients = rawData.map((item, idx) => ({
-                          id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
-                          name: item.name || '未知食材', 
-                          weight: Number(item.weight) || 0, 
-                          realPct: 0, 
-                          bakerPct: 0, 
-                          isBase: idx === 0 
-                      }));
+                       ingredients = rawData.map((item, idx) => ({
+                           id: (typeof nextId !== 'undefined' ? nextId++ : Date.now() + idx), 
+                           name: item.name || '未知食材', 
+                           weight: Number(item.weight) || 0, 
+                           realPct: 0, 
+                           bakerPct: 0, 
+                           isBase: idx === 0 
+                       }));
 
-                      if (typeof setMode === 'function') {
-                          setMode('weight'); 
-                      }
+                       if (typeof setMode === 'function') {
+                           setMode('weight'); 
+                       }
 
-                      if (statusBar) {
-                          statusBar.innerText = "✅ 分析完成！資料已填入表格";
-                          statusBar.style.color = "var(--success-green)"; 
-                      }
+                       if (statusBar) {
+                           statusBar.innerText = "✅ 分析完成！資料已填入表格";
+                           statusBar.style.color = "var(--success-green)"; 
+                       }
                 } else {
                     throw new Error("AI 回傳了空的資料");
                 }
@@ -1035,11 +1053,9 @@
         const btn = document.getElementById('ai-trigger-btn');
         if (btn) {
             btn.addEventListener('click', processAI);
-            console.log("按鈕已成功綁定！"); 
-        } else {
-            console.error("找不到按鈕！請檢查 ID 是否正確");
         }
     });
 </script>
+
 </body>
 </html>
