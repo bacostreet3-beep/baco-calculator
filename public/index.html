@@ -755,25 +755,69 @@
             ingredients.forEach(i => { i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; });
         }
         else if (currentMode === 'baker_pct') {
+            // 1. 先計算目前的「基準食材總重量」(通常是麵粉總和)
+            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+
             if (baseItems.length === 0) return;
-            if (type === 'global' || type === 'b') {
-                totalW = parseFloat(totalGlobalInput.value) || 0;
+
+            // --- 情況 A: 使用者改了上方的「配方總重量」 (等比例縮放) ---
+            if (type === 'global') {
+                let targetTotalW = parseFloat(totalGlobalInput.value) || 0;
                 let sumBakerAll = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
+                
                 if (sumBakerAll > 0) {
-                    let calculatedBaseW = totalW / (sumBakerAll / 100);
-                    ingredients.forEach(i => { i.weight = calculatedBaseW * (i.bakerPct / 100); });
-                    totalBaseW = calculatedBaseW;
-                } else {
-                    ingredients.forEach(i => i.weight = 0);
-                    totalBaseW = 0;
+                    // 反推需要的基準重量 (New Base = Total / Total%)
+                    let newBaseW = targetTotalW / (sumBakerAll / 100);
+                    // 根據新的基準，更新所有食材重量
+                    ingredients.forEach(i => { 
+                        i.weight = newBaseW * (i.bakerPct / 100); 
+                    });
+                    // 更新基準總重變數，供後續計算使用
+                    totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
                 }
             } 
-            if (type !== 'b') { 
-                 totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
-                 ingredients.forEach(i => { i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; });
+            
+            // --- 情況 B: 使用者改了某個食材的「烘焙 %」 ---
+            else if (type === 'b') {
+                // 只重新計算該食材的重量 (Weight = Base * %)
+                // 其他食材不受影響
+                const item = ingredients.find(i => i.id === sourceId);
+                if (item && totalBaseW > 0) {
+                    item.weight = totalBaseW * (item.bakerPct / 100);
+                }
             }
-            totalW = ingredients.reduce((s, i) => s + i.weight, 0); 
-            ingredients.forEach(i => { i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; });
+
+            // --- 情況 C: 使用者改了某個食材的「重量」 ---
+            else if (type === 'w') {
+                const item = ingredients.find(i => i.id === sourceId);
+                if (item) {
+                    if (item.isBase) {
+                        // C-1: 修改的是「基準食材」(例如麵粉變多了) -> 視為擴大產量
+                        // 所有「非基準」食材，要依照原本的烘焙%，跟著變重
+                        ingredients.forEach(i => {
+                            if (!i.isBase) {
+                                i.weight = totalBaseW * (i.bakerPct / 100);
+                            }
+                        });
+                    } else {
+                        // C-2: 修改的是「非基準食材」(例如糖變多了) -> 只是這項材料加量
+                        // 基準(麵粉)不動，其他材料(水)也不動
+                        // 只需重新計算這個食材的烘焙% (Pct = Weight / Base)
+                        if (totalBaseW > 0) {
+                            item.bakerPct = (item.weight / totalBaseW) * 100;
+                        }
+                    }
+                }
+            }
+
+            // 最後：不管上述哪種變動，都要重新計算「實際 %」與更新「總重量顯示」
+            totalW = ingredients.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+            ingredients.forEach(i => { 
+                i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; 
+            });
+            
+            // 更新上方總重量輸入框的數值，讓它反應目前的加總
+            totalGlobalInput.value = formatNum(totalW);
         }
         else if (currentMode === 'single_base') {
             let baseItem = baseItems[0];
