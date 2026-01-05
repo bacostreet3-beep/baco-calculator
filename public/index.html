@@ -479,6 +479,18 @@
             </div>
         </div>
 
+        <div id="baker-lock-controls" style="display: none; text-align: center; margin-bottom: 15px; background: #fffbe6; padding: 10px; border-radius: 8px; border: 1px solid #daa520;">
+            <p id="baker-lock-msg" style="margin: 0 0 10px 0; color: #b8860b; font-size: 14px;">
+                請先勾選表格中的「基準食材」(如麵粉)，完成後點擊按鈕鎖定。
+            </p>
+            <button id="btn-lock-base" onclick="toggleBaseLock(true)" style="width: auto; background: #daa520; color: white; border: none;">
+                ✅ 已選好基準值 (開始輸入)
+            </button>
+            <button id="btn-unlock-base" onclick="toggleBaseLock(false)" style="display: none; width: auto; background: #666; color: white; border: none;">
+                ✏️ 修改基準值
+            </button>
+        </div>
+
         <div style="text-align: center; margin-bottom: 15px;">
             <label style="cursor: pointer; color: var(--text-light); font-size: 14px;">
                 <input type="checkbox" id="decimal-toggle" onchange="toggleDecimal()" checked> 顯示小數點後一位
@@ -594,6 +606,7 @@
     let nextId = 4;
     let currentMode = 'weight'; 
     let isRenderDecimal = true;
+    let isBaseConfirmed = false; // 新增：基準值確認狀態
 
     const helpTexts = {
         'real_pct': '【輸入實際 % 模式說明】\n\n1. 設定「配方總重量」。\n2. 輸入每個食材佔總重量的「實際百分比」(總和應為 100%)。\n\n系統會自動計算出每個食材的公克數。',
@@ -634,6 +647,17 @@
             }
         });
 
+        // --- 新增：處理烘焙百分比的防呆顯示邏輯 ---
+        const lockControls = document.getElementById('baker-lock-controls');
+        if (mode === 'baker_pct') {
+            isBaseConfirmed = false; // 切換進來時，預設為「未確認」狀態
+            lockControls.style.display = 'block'; // 顯示防呆按鈕區
+            updateBakerLockUI(); // 更新按鈕狀態
+        } else {
+            lockControls.style.display = 'none'; // 其他模式隱藏
+            isBaseConfirmed = false; 
+        }
+
         if (mode === 'baker_pct') {
             const hasBase = ingredients.some(i => i.isBase);
             if (!hasBase && ingredients.length > 0) {
@@ -655,6 +679,40 @@
         updateCalculations(null); 
     }
 
+    // --- 新增：控制基準值鎖定/解鎖 UI ---
+    function updateBakerLockUI() {
+        const btnLock = document.getElementById('btn-lock-base');
+        const btnUnlock = document.getElementById('btn-unlock-base');
+        const msg = document.getElementById('baker-lock-msg');
+
+        if (isBaseConfirmed) {
+            // 已經確認基準 -> 顯示「修改基準值」，隱藏提示
+            btnLock.style.display = 'none';
+            btnUnlock.style.display = 'inline-block';
+            msg.style.display = 'none';
+        } else {
+            // 尚未確認 -> 顯示「已選好」，顯示提示
+            btnLock.style.display = 'inline-block';
+            btnUnlock.style.display = 'none';
+            msg.style.display = 'block';
+            msg.innerText = "請先勾選表格中的「基準食材」(如麵粉)，完成後點擊按鈕鎖定。";
+        }
+    }
+
+    function toggleBaseLock(locked) {
+        if (locked) {
+            // 按下「已選好」：檢查是否至少有一個基準
+            const hasBase = ingredients.some(i => i.isBase);
+            if (!hasBase) {
+                alert("⚠️ 請至少勾選一種食材作為基準 (通常是麵粉)！");
+                return;
+            }
+        }
+        isBaseConfirmed = locked;
+        updateBakerLockUI();
+        buildTableStructure(); // 重建表格以套用 disabled/readonly 狀態
+    }
+
     // --- DOM 建構 ---
     function buildTableStructure() {
         const tbody = document.getElementById('recipe-body');
@@ -671,25 +729,42 @@
                 tr.classList.add('base-row');
             }
 
+            // --- 邏輯判斷修正 ---
             let wDis = false, rDis = true, bDis = true;
-            if (currentMode === 'weight') { wDis = false; rDis = true; bDis = true; } 
-            else if (currentMode === 'real_pct') { wDis = true; rDis = false; bDis = true; } 
-            else if (currentMode === 'baker_pct') { wDis = true; bDis = false; } 
-            else if (currentMode === 'single_base') { wDis = !item.isBase; rDis = true; bDis = true; }
+            
+            if (currentMode === 'weight') { 
+                wDis = false; rDis = true; bDis = true; 
+            } 
+            else if (currentMode === 'real_pct') { 
+                wDis = true; rDis = false; bDis = true; 
+            } 
+            else if (currentMode === 'baker_pct') { 
+                // 若「未確認基準」，輸入框全鎖 (bDis=true)；若「已確認」，才解鎖 (bDis=false)
+                wDis = true; 
+                bDis = !isBaseConfirmed; 
+            } 
+            else if (currentMode === 'single_base') { 
+                wDis = !item.isBase; rDis = true; bDis = true; 
+            }
 
             let baseTdStyle = showBaseCol ? '' : 'display:none;';
             let inputType = (currentMode === 'baker_pct') ? 'checkbox' : 'radio';
             
+            // 若在烘焙百分比模式且「已確認基準」，則鎖定 Checkbox 不讓改
+            let baseDisabled = (currentMode === 'baker_pct' && isBaseConfirmed) ? 'disabled' : '';
+
             let baseHtml = `<td style="${baseTdStyle}">
-                <input type="${inputType}" name="baseItem" ${item.isBase ? 'checked' : ''} onchange="onBaseChange(${index})" style="cursor:pointer; width: 18px; height: 18px;">
+                <input type="${inputType}" name="baseItem" ${item.isBase ? 'checked' : ''} ${baseDisabled} onchange="onBaseChange(${index})" style="cursor:pointer; width: 18px; height: 18px;">
             </td>`;
 
-            const pctInput = (id, val, readonly, handler) => `
+            const pctInput = (id, val, readonly, handler) => {
+                const bgStyle = readonly ? 'background-color: #f5f5f5;' : '';
+                return `
                 <div class="pct-input-wrapper">
-                    <input type="number" id="${id}" step="any" value="${val}" ${readonly ? 'readonly' : ''} oninput="${handler}">
+                    <input type="number" id="${id}" step="any" value="${val}" ${readonly ? 'readonly' : ''} oninput="${handler}" style="${bgStyle}">
                     <span class="pct-symbol">%</span>
                 </div>
-            `;
+            `};
 
             tr.innerHTML = `
                 ${baseHtml}
@@ -925,7 +1000,6 @@
         return str + ' '.repeat(targetWidth - currentW);
     }
 
-    // --- 執行複製邏輯 ---
     // --- 執行複製邏輯 (修正版：加入 Chrome/WebView 相容性備援) ---
     function executeCopy(type) {
         const recipeName = document.getElementById('recipe-name').value.trim();
