@@ -882,16 +882,18 @@
     }
 
     // --- 執行複製邏輯 ---
+    // --- 執行複製邏輯 (修正版：加入 Chrome/WebView 相容性備援) ---
     function executeCopy(type) {
         const recipeName = document.getElementById('recipe-name').value.trim();
         let text = "";
 
+        // 1. 產生文字內容 (維持原本邏輯)
         if (recipeName) {
             text += `配方名稱：${recipeName}\n\n`;
         }
 
         if (type === 1) {
-            // Excel: 僅複製食材與重量 (Tab分隔)
+            // Excel: 僅複製食材與重量
             text += "食材\t重量(g)\n";
             ingredients.forEach(i => {
                 text += `${i.name}\t${formatNum(i.weight)}\n`;
@@ -900,7 +902,7 @@
             text += `總計\t${formatNum(sumW)}`;
 
         } else if (type === 2) {
-            // Excel: 完整複製 (Tab分隔)
+            // Excel: 完整複製
             text += "食材\t重量(g)\t實際%\t烘焙%\n";
             ingredients.forEach(i => {
                 text += `${i.name}\t${formatNum(i.weight)}\t${formatNum(i.realPct)}%\t${formatNum(i.bakerPct)}%\n`;
@@ -910,14 +912,12 @@
             const sumBakerText = document.getElementById('sum-baker-pct').innerText; 
             text += `總計\t${formatNum(sumW)}\t${formatNum(sumReal)}%\t${sumBakerText}`;
         } else {
-            // Line/Text: 視覺對齊複製 (Space分隔)
-            // 1. 計算各欄位最大寬度
-            let maxName = 6; // '食材' width 4, leave spacing
+            // Line/Text: 視覺對齊複製
+            let maxName = 6; 
             let maxW = 8;
             let maxR = 8;
             let maxB = 8;
 
-            // 包含標題列的寬度
             maxName = Math.max(maxName, getStrWidth("食材") + 2);
             maxW = Math.max(maxW, getStrWidth("重量(g)") + 2);
             maxR = Math.max(maxR, getStrWidth("實際%") + 2);
@@ -930,15 +930,13 @@
                 maxB = Math.max(maxB, getStrWidth(formatNum(i.bakerPct) + "%") + 2);
             });
 
-            // 2. 構建字串
             text += `${padStr("食材", maxName)}${padStr("重量(g)", maxW)}${padStr("實際%", maxR)}${padStr("烘焙%", maxB)}\n`;
-            text += "-".repeat(maxName + maxW + maxR + maxB) + "\n"; // 分隔線
+            text += "-".repeat(maxName + maxW + maxR + maxB) + "\n"; 
 
             ingredients.forEach(i => {
                 text += `${padStr(i.name, maxName)}${padStr(formatNum(i.weight), maxW)}${padStr(formatNum(i.realPct)+"%", maxR)}${padStr(formatNum(i.bakerPct)+"%", maxB)}\n`;
             });
 
-            // 總計
             const sumW = ingredients.reduce((s,i)=>s+(Number(i.weight)||0),0);
             const sumReal = ingredients.reduce((s,i)=>s+(Number(i.realPct)||0),0);
             const sumBakerText = document.getElementById('sum-baker-pct').innerText; 
@@ -947,19 +945,56 @@
             text += `${padStr("總計", maxName)}${padStr(formatNum(sumW), maxW)}${padStr(formatNum(sumReal)+"%", maxR)}${padStr(sumBakerText, maxB)}`;
         }
 
-        navigator.clipboard.writeText(text).then(() => {
-            closeCopyModal();
-            if(type === 3) {
-                 alert("✅ 已複製整齊文字！\n請使用「等寬字體」(如記事本) 或直接貼到 Line 皆可對齊。");
-            } else {
-                 alert("✅ 表格已複製！\n可直接在 Excel 按下貼上 (Ctrl+V)。");
-            }
-        }).catch(err => {
-            console.error('複製失敗:', err);
-            alert("複製失敗，請手動選取");
-        });
-    }
+        // 2. 定義成功後的動作
+        const onSuccess = () => {
+             closeCopyModal();
+             if(type === 3) {
+                  alert("✅ 已複製整齊文字！\n請使用「等寬字體」(如記事本) 或直接貼到 Line 皆可對齊。");
+             } else {
+                  alert("✅ 表格已複製！\n可直接在 Excel 按下貼上 (Ctrl+V)。");
+             }
+        };
 
+        // 3. 執行複製 (優先使用 API，失敗則使用備用方案)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(err => {
+                console.warn('Clipboard API 失敗，嘗試備用方案...', err);
+                fallbackCopy(text); 
+            });
+        } else {
+            // 瀏覽器不支援 API (如部分內嵌瀏覽器)
+            fallbackCopy(text); 
+        }
+
+        // 4. 備用複製方案 (建立隱藏 textarea 進行選取複製)
+        function fallbackCopy(inputText) {
+            const textArea = document.createElement("textarea");
+            textArea.value = inputText;
+            
+            // 設定樣式使其不可見但存在於 DOM 中
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    onSuccess();
+                } else {
+                    alert("複製失敗，請手動選取");
+                }
+            } catch (err) {
+                document.body.removeChild(textArea);
+                console.error('Fallback copy failed:', err);
+                alert("複製失敗，請手動選取");
+            }
+        }
+    }
     // --- 模具換算 ---
     function updateMoldInputs() {
         const type = document.getElementById('mold-type').value;
