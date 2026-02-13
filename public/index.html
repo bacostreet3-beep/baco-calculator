@@ -570,7 +570,7 @@
         </div>
 
         <div style="text-align: center;">
-            <button onclick="calculateMoldConversion()" style="background-color: var(--text-main); color: white; border: none; width: auto; padding: 10px 40px; font-size: 16px;">計算配方換算</button>
+            <button onclick="calculateMoldConversion()" style="background-color: var(--text-main); color: white; border: none; width: auto; padding: 10px 40px; font-size: 16px;">計算模具換算結果</button>
         </div>
         
         <div id="mold-result-area" style="display:none; margin-top:25px; border-top: 1px solid #eee; padding-top:20px;">
@@ -606,11 +606,11 @@
     let nextId = 4;
     let currentMode = 'weight'; 
     let isRenderDecimal = true;
-    let isBaseConfirmed = false; // 新增：基準值確認狀態
+    let isBaseConfirmed = false;
 
     const helpTexts = {
         'real_pct': '【輸入實際 % 模式說明】\n\n1. 設定「配方總重量」。\n2. 輸入每個食材佔總重量的「實際百分比」(總和應為 100%)。\n\n系統會自動計算出每個食材的公克數。',
-        'baker_pct': '【輸入烘焙 % 模式說明】\n\n1. 請勾選「基準食材」(可複選)。\n   例如：製作老麵麵包時，可同時勾選「中種麵粉」與「本種麵粉」。\n\n2. 這些被勾選的基準食材會自動加上底色。\n3. 所有基準食材的總重量會成為 100% 的基準，系統會自動計算各食材的比例。',
+        'baker_pct': '【輸入烘焙 % 模式說明】\n\n1. 請勾選「基準食材」(可複選)。\n   例如：製作老麵麵包時，可同時勾選「中種麵粉」與「本種麵粉」。\n\n2. 這些被勾選的基準食材會自動加上底色。\n3. 按下「已選好基準值」鎖定後，輸入其他食材的百分比，系統會依照「配方總重量」自動計算食材重量。',
         'single_base': '【修改單一食材重量說明】\n\n1. 勾選您想要修改的那個食材。\n2. 直接修改它的重量。\n\n系統會依照原本的比例，自動等比例調整其他所有食材的重量，確保配方風味不變。'
     };
 
@@ -647,14 +647,13 @@
             }
         });
 
-        // --- 新增：處理烘焙百分比的防呆顯示邏輯 ---
         const lockControls = document.getElementById('baker-lock-controls');
         if (mode === 'baker_pct') {
-            isBaseConfirmed = false; // 切換進來時，預設為「未確認」狀態
-            lockControls.style.display = 'block'; // 顯示防呆按鈕區
-            updateBakerLockUI(); // 更新按鈕狀態
+            isBaseConfirmed = false;
+            lockControls.style.display = 'block';
+            updateBakerLockUI();
         } else {
-            lockControls.style.display = 'none'; // 其他模式隱藏
+            lockControls.style.display = 'none';
             isBaseConfirmed = false; 
         }
 
@@ -662,7 +661,6 @@
             const hasBase = ingredients.some(i => i.isBase);
             if (!hasBase && ingredients.length > 0) {
                 ingredients[0].isBase = true;
-                ingredients[0].bakerPct = 100;
             }
         }
 
@@ -670,6 +668,7 @@
         if (mode === 'real_pct' || mode === 'baker_pct') {
             globalInput.style.display = 'block';
             let currentTotal = ingredients.reduce((sum, i) => sum + Number(i.weight), 0);
+            if(currentTotal === 0 && mode === 'baker_pct') currentTotal = 1000; // 預設值
             document.getElementById('total-weight-global').value = formatNum(currentTotal);
         } else {
             globalInput.style.display = 'none';
@@ -679,19 +678,17 @@
         updateCalculations(null); 
     }
 
-    // --- 新增：控制基準值鎖定/解鎖 UI ---
+    // --- 控制基準值鎖定/解鎖 UI ---
     function updateBakerLockUI() {
         const btnLock = document.getElementById('btn-lock-base');
         const btnUnlock = document.getElementById('btn-unlock-base');
         const msg = document.getElementById('baker-lock-msg');
 
         if (isBaseConfirmed) {
-            // 已經確認基準 -> 顯示「修改基準值」，隱藏提示
             btnLock.style.display = 'none';
             btnUnlock.style.display = 'inline-block';
             msg.style.display = 'none';
         } else {
-            // 尚未確認 -> 顯示「已選好」，顯示提示
             btnLock.style.display = 'inline-block';
             btnUnlock.style.display = 'none';
             msg.style.display = 'block';
@@ -701,7 +698,6 @@
 
     function toggleBaseLock(locked) {
         if (locked) {
-            // 按下「已選好」：檢查是否至少有一個基準
             const hasBase = ingredients.some(i => i.isBase);
             if (!hasBase) {
                 alert("⚠️ 請至少勾選一種食材作為基準 (通常是麵粉)！");
@@ -710,7 +706,26 @@
         }
         isBaseConfirmed = locked;
         updateBakerLockUI();
-        buildTableStructure(); // 重建表格以套用 disabled/readonly 狀態
+
+        // 鎖定時，強制同步一次烘焙百分比（解決點擊後％沒反應的問題）
+        if (locked) {
+             const baseItems = ingredients.filter(i => i.isBase);
+             const totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+             if (totalBaseW > 0) {
+                 ingredients.forEach(i => {
+                     i.bakerPct = (i.weight / totalBaseW) * 100;
+                 });
+             } else {
+                 // 如果目前總重是0，將基準設為100%
+                 ingredients.forEach(i => {
+                    if(i.isBase) i.bakerPct = 100;
+                    else i.bakerPct = 0;
+                 });
+             }
+             updateCalculations(null, 'structure'); 
+        }
+
+        buildTableStructure();
     }
 
     // --- DOM 建構 ---
@@ -729,7 +744,6 @@
                 tr.classList.add('base-row');
             }
 
-            // --- 邏輯判斷修正 ---
             let wDis = false, rDis = true, bDis = true;
             
             if (currentMode === 'weight') { 
@@ -739,7 +753,6 @@
                 wDis = true; rDis = false; bDis = true; 
             } 
             else if (currentMode === 'baker_pct') { 
-                // 若「未確認基準」，輸入框全鎖 (bDis=true)；若「已確認」，才解鎖 (bDis=false)
                 wDis = true; 
                 bDis = !isBaseConfirmed; 
             } 
@@ -749,8 +762,6 @@
 
             let baseTdStyle = showBaseCol ? '' : 'display:none;';
             let inputType = (currentMode === 'baker_pct') ? 'checkbox' : 'radio';
-            
-            // 若在烘焙百分比模式且「已確認基準」，則鎖定 Checkbox 不讓改
             let baseDisabled = (currentMode === 'baker_pct' && isBaseConfirmed) ? 'disabled' : '';
 
             let baseHtml = `<td style="${baseTdStyle}">
@@ -759,17 +770,19 @@
 
             const pctInput = (id, val, readonly, handler) => {
                 const bgStyle = readonly ? 'background-color: #f5f5f5;' : '';
+                // 增加 onfocus 處理自動清空0
                 return `
                 <div class="pct-input-wrapper">
-                    <input type="number" id="${id}" step="any" value="${val}" ${readonly ? 'readonly' : ''} oninput="${handler}" style="${bgStyle}">
+                    <input type="number" id="${id}" step="any" value="${val}" ${readonly ? 'readonly' : ''} oninput="${handler}" onfocus="handleInputFocus(this)" style="${bgStyle}">
                     <span class="pct-symbol">%</span>
                 </div>
             `};
 
+            // 重量欄位也加上 onfocus
             tr.innerHTML = `
                 ${baseHtml}
                 <td><input type="text" id="name-${item.id}" value="${item.name}" oninput="onNameInput(${index}, this.value)"></td>
-                <td><input type="number" id="w-${item.id}" step="any" ${wDis ? 'readonly' : ''} oninput="onInput(${index}, 'w', this.value)" style="text-align:right;"></td>
+                <td><input type="number" id="w-${item.id}" step="any" ${wDis ? 'readonly' : ''} oninput="onInput(${index}, 'w', this.value)" onfocus="handleInputFocus(this)" style="text-align:right;"></td>
                 <td>${pctInput(`r-${item.id}`, '', rDis, `onInput(${index}, 'r', this.value)`)}</td>
                 <td>${pctInput(`b-${item.id}`, '', bDis, `onInput(${index}, 'b', this.value)`)}</td>
                 <td><button class="delete-btn" onclick="deleteRow(${index})">×</button></td>
@@ -779,14 +792,26 @@
         updateViewValues(); 
     }
 
+    // --- 新增：處理輸入框 Focus 時的自動清空 ---
+    function handleInputFocus(el) {
+        if (!el.readOnly && (el.value === '0' || el.value === '0.0')) {
+            el.value = '';
+        }
+    }
+
     // --- 輸入與計算邏輯 ---
     function onInput(index, type, val) {
         const value = parseFloat(val);
         const item = ingredients[index];
         if (isNaN(value) && val !== '') return;
-        if (type === 'w') item.weight = value;
-        if (type === 'r') item.realPct = value;
-        if (type === 'b') item.bakerPct = value;
+        
+        // 如果使用者清空了欄位，我們暫時視為 0 進行計算，但保留介面為空
+        const safeVal = (val === '') ? 0 : value;
+
+        if (type === 'w') item.weight = safeVal;
+        if (type === 'r') item.realPct = safeVal;
+        if (type === 'b') item.bakerPct = safeVal;
+        
         updateCalculations(item.id, type);
     }
 
@@ -830,69 +855,37 @@
             ingredients.forEach(i => { i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; });
         }
         else if (currentMode === 'baker_pct') {
-            // 1. 先計算目前的「基準食材總重量」(通常是麵粉總和)
-            totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+            // 修正：在烘焙%模式下，任何更動都應該基於「配方總重量」來反推所有食材
+            // 這樣才能解決「輸入%後，重量沒有反應」的問題 (因為原本Base可能為0)
 
-            if (baseItems.length === 0) return;
-
-            // --- 情況 A: 使用者改了上方的「配方總重量」 (等比例縮放) ---
-            if (type === 'global') {
-                let targetTotalW = parseFloat(totalGlobalInput.value) || 0;
-                let sumBakerAll = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
-                
-                if (sumBakerAll > 0) {
-                    // 反推需要的基準重量 (New Base = Total / Total%)
-                    let newBaseW = targetTotalW / (sumBakerAll / 100);
-                    // 根據新的基準，更新所有食材重量
-                    ingredients.forEach(i => { 
-                        i.weight = newBaseW * (i.bakerPct / 100); 
-                    });
-                    // 更新基準總重變數，供後續計算使用
-                    totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
-                }
-            } 
+            // 計算目前所有食材的 Baker % 總和
+            let sumBakerAll = ingredients.reduce((s, i) => s + (Number(i.bakerPct)||0), 0);
             
-            // --- 情況 B: 使用者改了某個食材的「烘焙 %」 ---
-            else if (type === 'b') {
-                // 只重新計算該食材的重量 (Weight = Base * %)
-                // 其他食材不受影響
-                const item = ingredients.find(i => i.id === sourceId);
-                if (item && totalBaseW > 0) {
-                    item.weight = totalBaseW * (item.bakerPct / 100);
-                }
+            // 只有當百分比有值時才計算，避免除以零
+            if (sumBakerAll > 0) {
+                let targetTotalW = parseFloat(totalGlobalInput.value) || 0;
+                // 反推新的基準重量 (New Base = Total / Total%)
+                let newBaseW = targetTotalW / (sumBakerAll / 100);
+                
+                // 根據新的基準，更新所有食材重量
+                ingredients.forEach(i => { 
+                    i.weight = newBaseW * (i.bakerPct / 100); 
+                });
+                
+                // 更新基準總重變數，供後續 Footer 使用
+                totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
+            } else {
+                // 如果總％為0，重量歸零
+                ingredients.forEach(i => i.weight = 0);
             }
 
-            // --- 情況 C: 使用者改了某個食材的「重量」 ---
-            else if (type === 'w') {
-                const item = ingredients.find(i => i.id === sourceId);
-                if (item) {
-                    if (item.isBase) {
-                        // C-1: 修改的是「基準食材」(例如麵粉變多了) -> 視為擴大產量
-                        // 所有「非基準」食材，要依照原本的烘焙%，跟著變重
-                        ingredients.forEach(i => {
-                            if (!i.isBase) {
-                                i.weight = totalBaseW * (i.bakerPct / 100);
-                            }
-                        });
-                    } else {
-                        // C-2: 修改的是「非基準食材」(例如糖變多了) -> 只是這項材料加量
-                        // 基準(麵粉)不動，其他材料(水)也不動
-                        // 只需重新計算這個食材的烘焙% (Pct = Weight / Base)
-                        if (totalBaseW > 0) {
-                            item.bakerPct = (item.weight / totalBaseW) * 100;
-                        }
-                    }
-                }
-            }
-
-            // 最後：不管上述哪種變動，都要重新計算「實際 %」與更新「總重量顯示」
+            // 更新實際 % (用於顯示)
             totalW = ingredients.reduce((s, i) => s + (Number(i.weight) || 0), 0);
             ingredients.forEach(i => { 
                 i.realPct = totalW > 0 ? (i.weight / totalW * 100) : 0; 
             });
             
-            // 更新上方總重量輸入框的數值，讓它反應目前的加總
-            totalGlobalInput.value = formatNum(totalW);
+            // 注意：這裡不反向更新 totalGlobalInput，因為它是驅動源
         }
         else if (currentMode === 'single_base') {
             let baseItem = baseItems[0];
@@ -906,6 +899,12 @@
             ingredients.forEach(i => { i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; });
         }
 
+        // 如果不是 baker_pct 模式，則更新總重量輸入框
+        if (currentMode !== 'baker_pct' && totalGlobalInput) {
+            totalW = ingredients.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+            totalGlobalInput.value = formatNum(totalW);
+        }
+
         updateViewValues(sourceId, type);
         updateFooter(totalW, totalBaseW);
     }
@@ -913,14 +912,24 @@
     function updateViewValues(skipId = null, skipType = null) {
         ingredients.forEach(item => {
             const shouldSkip = (t) => (item.id === skipId && t === skipType);
-            if (!shouldSkip('w')) { const el = document.getElementById(`w-${item.id}`); if (el) el.value = formatNum(item.weight); }
-            if (!shouldSkip('r')) { const el = document.getElementById(`r-${item.id}`); if (el) el.value = formatNum(item.realPct); }
-            if (!shouldSkip('b')) { const el = document.getElementById(`b-${item.id}`); if (el) el.value = formatNum(item.bakerPct); }
+            
+            // 只有當元素沒有 focus 時才更新值，避免干擾使用者輸入
+            const updateIfSafe = (id, val) => {
+                const el = document.getElementById(id);
+                if (el && document.activeElement !== el) {
+                    el.value = formatNum(val);
+                }
+            };
+
+            if (!shouldSkip('w')) updateIfSafe(`w-${item.id}`, item.weight);
+            if (!shouldSkip('r')) updateIfSafe(`r-${item.id}`, item.realPct);
+            if (!shouldSkip('b')) updateIfSafe(`b-${item.id}`, item.bakerPct);
         });
     }
 
     function formatNum(num) {
         if (isNaN(num)) return '';
+        if (num === 0) return '0.0'; // 統一顯示格式
         if (isRenderDecimal) return num.toFixed(1);
         return Math.round(num * 100) / 100; 
     }
@@ -982,11 +991,10 @@
     function openCopyModal() { document.getElementById('copy-modal').style.display = 'flex'; }
     function closeCopyModal() { document.getElementById('copy-modal').style.display = 'none'; }
 
-    // --- 文字寬度計算 Helper (處理中英文對齊) ---
+    // --- 文字寬度計算 Helper ---
     function getStrWidth(str) {
         let width = 0;
         for (let i = 0; i < str.length; i++) {
-            // 判斷是否為全形字元 (大致判斷)
             if (str.charCodeAt(i) > 255) width += 2;
             else width += 1;
         }
@@ -996,22 +1004,19 @@
     function padStr(str, targetWidth) {
         let currentW = getStrWidth(str);
         if (currentW >= targetWidth) return str;
-        // 補空白 (簡單用半形空白，為了相容性)
         return str + ' '.repeat(targetWidth - currentW);
     }
 
-    // --- 執行複製邏輯 (修正版：加入 Chrome/WebView 相容性備援) ---
+    // --- 執行複製邏輯 ---
     function executeCopy(type) {
         const recipeName = document.getElementById('recipe-name').value.trim();
         let text = "";
 
-        // 1. 產生文字內容 (維持原本邏輯)
         if (recipeName) {
             text += `配方名稱：${recipeName}\n\n`;
         }
 
         if (type === 1) {
-            // Excel: 僅複製食材與重量
             text += "食材\t重量(g)\n";
             ingredients.forEach(i => {
                 text += `${i.name}\t${formatNum(i.weight)}\n`;
@@ -1020,7 +1025,6 @@
             text += `總計\t${formatNum(sumW)}`;
 
         } else if (type === 2) {
-            // Excel: 完整複製
             text += "食材\t重量(g)\t實際%\t烘焙%\n";
             ingredients.forEach(i => {
                 text += `${i.name}\t${formatNum(i.weight)}\t${formatNum(i.realPct)}%\t${formatNum(i.bakerPct)}%\n`;
@@ -1030,7 +1034,6 @@
             const sumBakerText = document.getElementById('sum-baker-pct').innerText; 
             text += `總計\t${formatNum(sumW)}\t${formatNum(sumReal)}%\t${sumBakerText}`;
         } else {
-            // Line/Text: 視覺對齊複製
             let maxName = 6; 
             let maxW = 8;
             let maxR = 8;
@@ -1063,7 +1066,6 @@
             text += `${padStr("總計", maxName)}${padStr(formatNum(sumW), maxW)}${padStr(formatNum(sumReal)+"%", maxR)}${padStr(sumBakerText, maxB)}`;
         }
 
-        // 2. 定義成功後的動作
         const onSuccess = () => {
              closeCopyModal();
              if(type === 3) {
@@ -1073,23 +1075,18 @@
              }
         };
 
-        // 3. 執行複製 (優先使用 API，失敗則使用備用方案)
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(onSuccess).catch(err => {
                 console.warn('Clipboard API 失敗，嘗試備用方案...', err);
                 fallbackCopy(text); 
             });
         } else {
-            // 瀏覽器不支援 API (如部分內嵌瀏覽器)
             fallbackCopy(text); 
         }
 
-        // 4. 備用複製方案 (建立隱藏 textarea 進行選取複製)
         function fallbackCopy(inputText) {
             const textArea = document.createElement("textarea");
             textArea.value = inputText;
-            
-            // 設定樣式使其不可見但存在於 DOM 中
             textArea.style.position = "fixed";
             textArea.style.left = "-9999px";
             textArea.style.top = "0";
@@ -1101,11 +1098,8 @@
             try {
                 const successful = document.execCommand('copy');
                 document.body.removeChild(textArea);
-                if (successful) {
-                    onSuccess();
-                } else {
-                    alert("複製失敗，請手動選取");
-                }
+                if (successful) onSuccess();
+                else alert("複製失敗，請手動選取");
             } catch (err) {
                 document.body.removeChild(textArea);
                 console.error('Fallback copy failed:', err);
