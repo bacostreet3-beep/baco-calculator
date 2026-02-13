@@ -499,6 +499,7 @@
 
         <div id="total-weight-input-group">
             <label>配方總重量 (g): <input type="number" id="total-weight-global" value="1000" style="width: 120px; display:inline-block; font-weight:bold; text-align: center;" oninput="onGlobalTotalChange()"></label>
+            <button onclick="syncRealTotal()" style="margin-left: 10px; width: auto; padding: 5px 15px; font-size: 14px; display: inline-block; background-color: var(--text-main); color: white; border: none;">更新食材總重</button>
         </div>
 
         <table class="recipe-table">
@@ -830,6 +831,34 @@
 
     function onGlobalTotalChange() { updateCalculations(null, 'global'); }
 
+  // 新增：手動更新總重 (提示：解釋連續點擊會造成的迴圈現象)
+    function syncRealTotal() {
+        // 1. 計算目前的實際 % 總和
+        const sumReal = ingredients.reduce((s, i) => s + (Number(i.realPct) || 0), 0);
+        
+        // 2. 檢查是否有偏差 (容許 0.1% 的誤差)
+        if (Math.abs(sumReal - 100) > 0.1) {
+            // 判斷趨勢
+            const trend = sumReal > 100 ? "持續變大" : "持續變小";
+            
+            // 訊息重點：告知目前狀態並解釋連續點擊的後果
+            const msg = `目前的實際百分比總和為 ${formatNum(sumReal)}%。\n\n` +
+                        `因總和非 100%，若您「連續點擊」更新，\n` +
+                        `配方總重將會出現循環式「${trend}」的現象。\n\n` +
+                        `確定要執行更新嗎？`;
+
+            // 如果使用者按「取消」，則終止函式
+            if (!confirm(msg)) {
+                return;
+            }
+        }
+
+        // 3. 執行更新
+        const sumW = ingredients.reduce((s,i)=>s+(Number(i.weight)||0),0);
+        document.getElementById('total-weight-global').value = formatNum(sumW);
+        updateCalculations(null, 'global');
+    }
+
     function updateCalculations(sourceId, type) {
         const totalGlobalInput = document.getElementById('total-weight-global');
         let totalW = 0;
@@ -849,8 +878,16 @@
             });
         }
         else if (currentMode === 'real_pct') {
-            totalW = parseFloat(totalGlobalInput.value) || 0;
-            ingredients.forEach(i => { i.weight = totalW * (i.realPct / 100); });
+            // 修正重點：以輸入框的「設定總重」為絕對標準
+            let targetTotal = parseFloat(totalGlobalInput.value) || 0;
+            
+            // 無論是修改總重，還是修改單一%，都重新依照設定的總重來計算重量
+            // 這樣單一食材修改時，只會變更自己的重量，不會回推改變總重輸入框
+            ingredients.forEach(i => {
+                i.weight = targetTotal * (i.realPct / 100);
+            });
+            
+            // 計算目前真正的總重與基準重，用於顯示 Baker %
             totalBaseW = baseItems.reduce((sum, i) => sum + (Number(i.weight)||0), 0);
             ingredients.forEach(i => { i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; });
         }
@@ -899,14 +936,16 @@
             ingredients.forEach(i => { i.bakerPct = totalBaseW > 0 ? (i.weight / totalBaseW * 100) : 0; });
         }
 
-        // 如果不是 baker_pct 模式，則更新總重量輸入框
-        if (currentMode !== 'baker_pct' && totalGlobalInput) {
+        // 修正：如果是 real_pct 模式，也不要自動更新總重量輸入框，避免迴圈鎖死
+        if (currentMode !== 'baker_pct' && currentMode !== 'real_pct' && totalGlobalInput) {
             totalW = ingredients.reduce((s, i) => s + (Number(i.weight) || 0), 0);
             totalGlobalInput.value = formatNum(totalW);
         }
 
         updateViewValues(sourceId, type);
-        updateFooter(totalW, totalBaseW);
+        // 若在 real_pct 模式，Footer 顯示實際加總，可能與輸入框不同，這是正常的
+        let currentSum = ingredients.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+        updateFooter(currentSum, totalBaseW);
     }
 
     function updateViewValues(skipId = null, skipType = null) {
